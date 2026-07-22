@@ -1,12 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "6po/Oy+0GBI=",
+  "dgSpecHash": "aNnrlnVEVcE=",
   "success": true,
   "projectFilePath": "C:\\Users\\ruben\\Desktop\\Repositorios\\peaker-app\\ascent-service\\AscentService\\AscentService.API\\AscentService.API.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\ruben\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.10\\microsoft.aspnetcore.openapi.10.0.10.nupkg.sha512",
-    "C:\\Users\\ruben\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512",
-    "C:\\Users\\ruben\\.nuget\\packages\\system.text.json\\8.0.5\\system.text.json.8.0.5.nupkg.sha512"
+    "C:\\Users\\ruben\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
   ],
   "logs": [
     {
