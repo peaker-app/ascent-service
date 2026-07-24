@@ -1,0 +1,37 @@
+using System.Security.Cryptography;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
+
+namespace AscentService.IntegrationTests;
+
+internal sealed class TestTokenSigning : IDisposable
+{
+    public const string Issuer = "peaker-auth";
+    public const string Audience = "peaker-api";
+
+    private static readonly JsonWebTokenHandler TokenHandler = new() { SetDefaultTimesOnTokenCreation = false };
+
+    private readonly RSA _rsa = RSA.Create(2048);
+
+    public SecurityKey PublicKey => new RsaSecurityKey(_rsa.ExportParameters(includePrivateParameters: false));
+
+    public string CreateAccessToken(Guid userId)
+    {
+        DateTime now = DateTime.UtcNow;
+
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = Issuer,
+            Audience = Audience,
+            IssuedAt = now,
+            NotBefore = now,
+            Expires = now.AddMinutes(15),
+            Claims = new Dictionary<string, object> { ["sub"] = userId.ToString() },
+            SigningCredentials = new SigningCredentials(new RsaSecurityKey(_rsa), SecurityAlgorithms.RsaSha256)
+        };
+
+        return TokenHandler.CreateToken(descriptor);
+    }
+
+    public void Dispose() => _rsa.Dispose();
+}

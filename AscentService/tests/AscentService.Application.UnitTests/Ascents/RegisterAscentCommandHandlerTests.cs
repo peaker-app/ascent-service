@@ -1,0 +1,118 @@
+using AscentService.Application.Abstractions;
+using AscentService.Application.Ascents.RegisterAscent;
+using AscentService.Application.UnitTests.TestData;
+using AscentService.Domain.Ascents;
+using Common.Application.Abstractions;
+using Common.Domain.Results;
+using FluentAssertions;
+using NSubstitute;
+using Xunit;
+
+namespace AscentService.Application.UnitTests.Ascents;
+
+public sealed class RegisterAscentCommandHandlerTests
+{
+    private readonly IAscentRepository _ascentRepository = Substitute.For<IAscentRepository>();
+    private readonly IPeakCatalog _peakCatalog = Substitute.For<IPeakCatalog>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
+
+    private readonly RegisterAscentCommandHandler _handler;
+
+    public RegisterAscentCommandHandlerTests()
+    {
+        _dateTimeProvider.Today.Returns(AscentFactory.Today);
+        _handler = new RegisterAscentCommandHandler(
+            _ascentRepository, _peakCatalog, _unitOfWork, _dateTimeProvider);
+    }
+
+    [Fact]
+    public async Task Handle_WithAKnownPeak_ReturnsTheNewAscentId()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+
+        Result<Guid> result = await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        result.Value.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_WithAKnownPeak_PersistsTheAscent()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+
+        await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithAKnownPeak_DenormalisesTheCatalogSnapshot()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+
+        await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        _ascentRepository.Received(1).Add(Arg.Is<Ascent>(ascent => ascent!.Peak == AscentFactory.Aneto));
+    }
+
+    [Fact]
+    public async Task Handle_WithAnUnknownPeak_ReturnsPeakNotFound()
+    {
+        Error notFound = AscentErrors.PeakNotFound(AscentFactory.Aneto.PeakId);
+        _peakCatalog.GetSnapshotAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PeakSnapshot>(notFound));
+
+        Result<Guid> result = await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        result.Error.Should().Be(notFound);
+    }
+
+    [Fact]
+    public async Task Handle_WhenTheCatalogIsDown_ReturnsPeakCatalogUnavailable()
+    {
+        _peakCatalog.GetSnapshotAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PeakSnapshot>(AscentErrors.PeakCatalogUnavailable));
+
+        Result<Guid> result = await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        result.Error.Type.Should().Be(ErrorType.Unavailable);
+    }
+
+    [Fact]
+    public async Task Handle_WhenTheCatalogIsDown_DoesNotPersistAnything()
+    {
+        _peakCatalog.GetSnapshotAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<PeakSnapshot>(AscentErrors.PeakCatalogUnavailable));
+
+        await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithAFutureDate_ReturnsDateInFuture()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+        RegisterAscentCommand command = AscentFactory.RegisterCommand(AscentFactory.Today.AddDays(1));
+
+        Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Error.Should().Be(AscentErrors.DateInFuture);
+    }
+
+    [Fact]
+    public async Task Handle_WithADateBefore1900_ReturnsDateTooOld()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+        RegisterAscentCommand command = AscentFactory.RegisterCommand(new DateOnly(1899, 12, 31));
+
+        Result<Guid> result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Error.Should().Be(AscentErrors.DateTooOld);
+    }
+
+    private void GivenTheCatalogResolves(PeakSnapshot peak) =>
+        _peakCatalog.GetSnapshotAsync(peak.PeakId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(peak));
+}
