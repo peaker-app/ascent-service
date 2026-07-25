@@ -55,7 +55,13 @@ public sealed class Ascent : AggregateRoot
         Ascent ascent = new(Guid.CreateVersion7(), draft);
 
         ascent.Raise(new AscentRegisteredDomainEvent(
-            ascent.Id, ascent.UserId, ascent.Peak.PeakId, ascent.Peak.Name, ascent.Peak.AltitudeMeters, ascent.AscentDate));
+            ascent.Id,
+            ascent.UserId,
+            ascent.Peak.PeakId,
+            ascent.Peak.Name,
+            ascent.Peak.AltitudeMeters,
+            ascent.AscentDate,
+            ascent.Visibility.ToString()));
 
         return ascent;
     }

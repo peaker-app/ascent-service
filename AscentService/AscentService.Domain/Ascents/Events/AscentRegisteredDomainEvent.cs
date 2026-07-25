@@ -8,4 +8,5 @@ public sealed record AscentRegisteredDomainEvent(
     Guid PeakId,
     string PeakName,
     int PeakAltitudeMeters,
-    DateOnly AscentDate) : IDomainEvent;
+    DateOnly AscentDate,
+    string Visibility) : IDomainEvent;

@@ -32,6 +32,18 @@ public sealed class AscentTests
     }
 
     [Fact]
+    public void Create_WithPrivateVisibility_RaisesRegisteredEventCarryingTheVisibility()
+    {
+        AscentDetails details = new(
+            AscentMother.Today, null, null, AscentConditions.Unreported, AscentVisibility.Private);
+
+        Ascent ascent = Ascent.Create(AscentMother.Draft(details), AscentMother.Today).Value;
+
+        ascent.DomainEvents.OfType<AscentRegisteredDomainEvent>().Single()
+            .Visibility.Should().Be(nameof(AscentVisibility.Private));
+    }
+
+    [Fact]
     public void Create_WithoutVisibility_DefaultsToPublic()
     {
         AscentDetails details = new(AscentMother.Today, null, null, AscentConditions.Unreported, default);

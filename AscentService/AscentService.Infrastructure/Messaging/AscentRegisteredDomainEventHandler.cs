@@ -19,6 +19,7 @@ internal sealed class AscentRegisteredDomainEventHandler(
                 PeakName = domainEvent.PeakName,
                 PeakAltitudeM = domainEvent.PeakAltitudeMeters,
                 AscentDate = domainEvent.AscentDate,
+                Visibility = domainEvent.Visibility,
                 OccurredAtUtc = dateTimeProvider.UtcNow
             },
             cancellationToken);
