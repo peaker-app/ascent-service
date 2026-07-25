@@ -26,7 +26,11 @@ public static class DependencyInjection
         services.AddPersistence(configuration);
         services.AddPhotoStorage(configuration);
         services.AddExternalServices(configuration);
-        services.AddEventBus(configuration, bus => bus.AddConsumer<PeakRenamedConsumer>());
+        services.AddEventBus(configuration, bus =>
+        {
+            bus.AddConsumer<PeakRenamedConsumer>();
+            bus.AddConsumer<UserDeletedConsumer>();
+        });
         services.AddDomainEventHandlers();
 
         return services;
@@ -65,7 +69,11 @@ public static class DependencyInjection
 
     private static void AddPhotoStorage(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
+        services.AddOptions<CloudinaryOptions>()
+            .Bind(configuration.GetSection(CloudinaryOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddScoped<IPhotoStorage, CloudinaryPhotoStorage>();
     }
 

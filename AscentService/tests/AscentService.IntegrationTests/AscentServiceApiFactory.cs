@@ -4,6 +4,7 @@ using AscentService.Application.Abstractions;
 using AscentService.Infrastructure.Persistence;
 using AscentService.IntegrationTests.Fakes;
 using Common.Contracts.Peaks;
+using Common.Contracts.Users;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -53,6 +54,49 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
         IPublishEndpoint publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
 
         await publishEndpoint.Publish(message);
+    }
+
+    public async Task PublishUserDeletedAsync(UserDeleted message)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        IPublishEndpoint publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
+
+        await publishEndpoint.Publish(message);
+    }
+
+    public async Task<IReadOnlyList<string>> ReadPhotoPublicIdsAsync(Guid ascentId)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        AscentDbContext context = scope.ServiceProvider.GetRequiredService<AscentDbContext>();
+
+        return await context.Ascents
+            .AsNoTracking()
+            .Where(ascent => ascent.Id == ascentId)
+            .SelectMany(ascent => ascent.Photos.Select(photo => photo.CloudinaryPublicId))
+            .ToListAsync();
+    }
+
+    public async Task<int> CountAscentsAsync(Guid userId)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        AscentDbContext context = scope.ServiceProvider.GetRequiredService<AscentDbContext>();
+
+        return await context.Ascents.AsNoTracking().CountAsync(ascent => ascent.UserId == userId);
+    }
+
+    public async Task<bool> WaitForAscentRemovalAsync(Guid userId)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            if (await CountAscentsAsync(userId) == 0)
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500));
+        }
+
+        return false;
     }
 
     public async Task<string?> ReadPeakNameAsync(Guid ascentId)

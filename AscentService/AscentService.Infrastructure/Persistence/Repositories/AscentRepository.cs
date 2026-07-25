@@ -13,6 +13,11 @@ internal sealed class AscentRepository(AscentDbContext context) : IAscentReposit
             .Where(ascent => ascent.Peak.PeakId == peakId)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Ascent>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        await context.Ascents
+            .Where(ascent => ascent.UserId == userId)
+            .ToListAsync(cancellationToken);
+
     public void Add(Ascent ascent) => context.Ascents.Add(ascent);
 
     public void Remove(Ascent ascent) => context.Ascents.Remove(ascent);

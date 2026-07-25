@@ -10,6 +10,11 @@ namespace AscentService.Infrastructure.ExternalServices;
 
 internal sealed class CloudinaryPhotoStorage : IPhotoStorage
 {
+    private const string DeletedOutcome = "ok";
+
+    // Motivo: el outbox reentrega la compensación hasta confirmarla; una foto ya borrada no es un fallo.
+    private const string MissingOutcome = "not found";
+
     private readonly Cloudinary _cloudinary;
     private readonly CloudinaryOptions _options;
     private readonly ILogger<CloudinaryPhotoStorage> _logger;
@@ -46,8 +51,26 @@ internal sealed class CloudinaryPhotoStorage : IPhotoStorage
 
     public async Task DeleteAsync(string publicId, CancellationToken cancellationToken)
     {
-        var deletionParameters = new DeletionParams(publicId);
+        // Motivo: DestroyAsync de CloudinaryDotNet 1.27.7 no admite CancellationToken.
+        cancellationToken.ThrowIfCancellationRequested();
 
-        await _cloudinary.DestroyAsync(deletionParameters);
+        DeletionResult result = await _cloudinary.DestroyAsync(new DeletionParams(publicId));
+
+        if (IsConfirmed(result))
+        {
+            return;
+        }
+
+        _logger.LogWarning(
+            "Cloudinary photo deletion was not confirmed for {PublicId}: {Outcome}",
+            publicId,
+            result.Error?.Message ?? result.Result);
+
+        throw new PhotoStorageException($"Cloudinary did not confirm the deletion of '{publicId}'.");
     }
+
+    private static bool IsConfirmed(DeletionResult result) =>
+        result.Error is null &&
+        (string.Equals(result.Result, DeletedOutcome, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(result.Result, MissingOutcome, StringComparison.OrdinalIgnoreCase));
 }

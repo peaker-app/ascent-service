@@ -114,12 +114,14 @@ public sealed class AscentsController(ISender sender, IUserContext userContext) 
 
     [HttpPost("{id:guid}/photos")]
     [Authorize]
+    [RequestSizeLimit(AddAscentPhotoCommand.MaxRequestSizeInBytes)]
     [ProducesResponseType(typeof(AscentPhotoResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     public async Task<IActionResult> AddPhoto(Guid id, IFormFile file, CancellationToken cancellationToken)
     {
         if (file is null)

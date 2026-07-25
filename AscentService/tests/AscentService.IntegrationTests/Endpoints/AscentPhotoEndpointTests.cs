@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using AscentService.Application.Ascents.AddAscentPhoto;
 using AscentService.Application.Ascents.GetAscentById;
 using AscentService.Domain.Ascents;
 using FluentAssertions;
@@ -183,6 +184,56 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
             $"{ApiTestHelpers.AscentRoute(ascentId)}/photos/{photo.Id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task RemovePhoto_WhenRemoteStorageFails_StillRemovesThePhotoLocally()
+    {
+        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
+        AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
+        factory.PhotoStorage.FailNextDeletions(PublicIdOf(photo), attempts: 2);
+
+        await owner.DeleteAsync($"{ApiTestHelpers.AscentRoute(ascentId)}/photos/{photo.Id}");
+
+        IReadOnlyList<string> remaining = await factory.ReadPhotoPublicIdsAsync(ascentId);
+
+        remaining.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RemovePhoto_WhenRemoteStorageRecovers_RetriesTheRemoteDeletion()
+    {
+        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
+        AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
+        string publicId = PublicIdOf(photo);
+        factory.PhotoStorage.FailNextDeletions(publicId, attempts: 1);
+
+        await owner.DeleteAsync($"{ApiTestHelpers.AscentRoute(ascentId)}/photos/{photo.Id}");
+
+        bool deleted = await WaitForDeletionAsync(publicId);
+
+        deleted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AddPhoto_WithAnOversizedImage_Returns400()
+    {
+        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
+
+        HttpResponseMessage response = await owner.UploadPhotoAsync(ascentId, OversizedJpeg());
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private static byte[] OversizedJpeg()
+    {
+        byte[] content = new byte[AddAscentPhotoCommand.MaxSizeInBytes + 1];
+        ApiTestHelpers.JpegBytes.CopyTo(content, 0);
+
+        return content;
     }
 
     private static string PublicIdOf(AscentPhotoResponse photo) =>
