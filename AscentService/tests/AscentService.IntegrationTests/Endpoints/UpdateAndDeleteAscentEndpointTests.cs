@@ -13,7 +13,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Update_ByTheOwner_Returns204()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.PutAsJsonAsync(
@@ -25,7 +25,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Update_ByTheOwner_PersistsTheNewValues()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         await owner.PutAsJsonAsync(ApiTestHelpers.AscentRoute(ascentId), UpdateBody());
@@ -39,7 +39,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Update_WithoutVisibility_ResetsTheAscentToPublic()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody(AscentVisibility.Private));
 
         await owner.PutAsJsonAsync(
@@ -54,7 +54,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Update_WithAFutureDate_Returns400()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.PutAsJsonAsync(
@@ -66,10 +66,10 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Update_ByAnotherUser_Returns403()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
-        using HttpClient stranger = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         HttpResponseMessage response = await stranger.PutAsJsonAsync(
             ApiTestHelpers.AscentRoute(ascentId), UpdateBody());
 
@@ -79,7 +79,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Update_WithAnUnknownAscent_Returns404()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await owner.PutAsJsonAsync(
             ApiTestHelpers.AscentRoute(Guid.CreateVersion7()), UpdateBody());
@@ -101,7 +101,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Delete_ByTheOwner_Returns204()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.DeleteAsync(ApiTestHelpers.AscentRoute(ascentId));
@@ -112,7 +112,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Delete_ByTheOwner_MakesTheAscentUnreachable()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         await owner.DeleteAsync(ApiTestHelpers.AscentRoute(ascentId));
@@ -124,7 +124,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Delete_ByTheOwner_RemovesItsPhotosFromRemoteStorage()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
 
@@ -138,10 +138,10 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Delete_ByAnotherUser_Returns403()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
-        using HttpClient stranger = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         HttpResponseMessage response = await stranger.DeleteAsync(ApiTestHelpers.AscentRoute(ascentId));
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -150,7 +150,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     [Fact]
     public async Task Delete_WithAnUnknownAscent_Returns404()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await owner.DeleteAsync(
             ApiTestHelpers.AscentRoute(Guid.CreateVersion7()));

@@ -15,7 +15,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     public async Task GetById_WhenTheOwnerReadsTheirOwnPrivateAscent_Returns200()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(ownerId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ownerId);
         Guid ascentId = await owner.RegisterAscentAsync(Body(AscentVisibility.Private));
 
         HttpResponseMessage response = await owner.GetAsync(ApiTestHelpers.AscentRoute(ascentId));
@@ -26,7 +26,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     [Fact]
     public async Task GetById_WhenAnAnonymousVisitorReadsAPrivateAscent_Returns404()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(Body(AscentVisibility.Private));
 
         using HttpClient visitor = factory.CreateClient();
@@ -38,10 +38,10 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     [Fact]
     public async Task GetById_WhenAnotherUserReadsAPrivateAscent_Returns404()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(Body(AscentVisibility.Private));
 
-        using HttpClient stranger = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         HttpResponseMessage response = await stranger.GetAsync(ApiTestHelpers.AscentRoute(ascentId));
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -50,7 +50,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     [Fact]
     public async Task GetById_WhenAnAnonymousVisitorReadsAPublicAscentOfAPublicProfile_Returns200()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(Body(AscentVisibility.Public));
 
         using HttpClient visitor = factory.CreateClient();
@@ -63,7 +63,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     public async Task GetById_WhenAnAnonymousVisitorReadsAPublicAscentOfAPrivateProfile_Returns404()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(ownerId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ownerId);
         Guid ascentId = await owner.RegisterAscentAsync(Body(AscentVisibility.Public));
 
         factory.ProfileDirectory.MakePrivate(ownerId);
@@ -88,7 +88,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     public async Task ListByUser_ForAnAnonymousVisitor_ReturnsOnlyThePublicAscents()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(ownerId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ownerId);
         await owner.RegisterAscentAsync(Body(AscentVisibility.Public));
         await owner.RegisterAscentAsync(Body(AscentVisibility.Private));
 
@@ -103,7 +103,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     public async Task ListByUser_ForTheOwner_StillReturnsOnlyTheirPublicAscents()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(ownerId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ownerId);
         await owner.RegisterAscentAsync(Body(AscentVisibility.Public));
         await owner.RegisterAscentAsync(Body(AscentVisibility.Private));
 
@@ -117,12 +117,12 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     public async Task ListByUser_WhenTheProfileIsPrivateAndTheRequesterIsAStranger_Returns404()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(ownerId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ownerId);
         await owner.RegisterAscentAsync(Body(AscentVisibility.Public));
 
         factory.ProfileDirectory.MakePrivate(ownerId);
 
-        using HttpClient stranger = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         HttpResponseMessage response = await stranger.GetAsync(ApiTestHelpers.ByUserRoute(ownerId));
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -132,7 +132,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     public async Task ListByUser_WhenTheProfileIsPrivateButTheRequesterIsTheOwner_Returns200()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(ownerId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ownerId);
         await owner.RegisterAscentAsync(Body(AscentVisibility.Public));
 
         factory.ProfileDirectory.MakePrivate(ownerId);

@@ -9,11 +9,17 @@ namespace AscentService.Application.Ascents.RegisterAscent;
 internal sealed class RegisterAscentCommandHandler(
     IAscentRepository ascentRepository,
     IPeakCatalog peakCatalog,
+    IConfirmedUserDirectory confirmedUserDirectory,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider) : ICommandHandler<RegisterAscentCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(RegisterAscentCommand command, CancellationToken cancellationToken)
     {
+        if (!await confirmedUserDirectory.IsConfirmedAsync(command.UserId, cancellationToken))
+        {
+            return Result.Failure<Guid>(AscentErrors.EmailNotConfirmed);
+        }
+
         Result<PeakSnapshot> peak = await peakCatalog.GetSnapshotAsync(command.PeakId, cancellationToken);
 
         if (peak.IsFailure)

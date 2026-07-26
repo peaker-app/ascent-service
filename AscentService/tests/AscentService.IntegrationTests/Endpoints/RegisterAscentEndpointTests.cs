@@ -14,7 +14,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_WithAKnownPeak_Returns201()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await client.PostAsJsonAsync("/api/ascents", Body(peak.PeakId));
 
@@ -25,7 +25,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_WithAKnownPeak_DenormalisesTheCatalogData()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register("Mont Blanc", 4808);
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         Guid ascentId = await client.RegisterAscentAsync(Body(peak.PeakId));
 
@@ -39,7 +39,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_WithoutVisibility_PersistsThePublicDefault()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         Guid ascentId = await client.RegisterAscentAsync(new { peakId = peak.PeakId, ascentDate = "2026-07-01" });
 
@@ -54,7 +54,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
         Guid userId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(userId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(userId);
 
         Guid ascentId = await owner.RegisterAscentAsync(new { peakId = peak.PeakId, ascentDate = "2026-07-01" });
 
@@ -68,7 +68,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_WithConditions_PersistsThem()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         Guid ascentId = await client.RegisterAscentAsync(new
         {
@@ -90,7 +90,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_WithAFutureDate_Returns400()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/ascents", Body(peak.PeakId, ascentDate: "2099-01-01"));
@@ -102,7 +102,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_WithADateBefore1900_Returns400()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/ascents", Body(peak.PeakId, ascentDate: "1899-12-31"));
@@ -124,7 +124,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task Register_WithAnUnknownPeak_Returns404()
     {
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await client.PostAsJsonAsync("/api/ascents", Body(Guid.CreateVersion7()));
 
@@ -135,7 +135,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_WhenThePeakCatalogIsDown_Returns503()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         factory.PeakCatalog.IsDown = true;
 
@@ -155,7 +155,7 @@ public sealed class RegisterAscentEndpointTests(AscentServiceApiFactory factory)
     public async Task Register_TheSamePeakTwice_IsAllowed()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register();
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         await client.RegisterAscentAsync(Body(peak.PeakId));
         HttpResponseMessage response = await client.PostAsJsonAsync("/api/ascents", Body(peak.PeakId));

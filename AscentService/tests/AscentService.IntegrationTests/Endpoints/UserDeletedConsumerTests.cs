@@ -12,7 +12,7 @@ public sealed class UserDeletedConsumerTests(AscentServiceApiFactory factory)
     public async Task Consume_UserDeleted_RemovesEveryAscentOfThatUser()
     {
         Guid userId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(userId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(userId);
         await owner.RegisterAscentAsync(NewAscentBody());
         await owner.RegisterAscentAsync(NewAscentBody());
 
@@ -27,8 +27,8 @@ public sealed class UserDeletedConsumerTests(AscentServiceApiFactory factory)
     {
         Guid deletedUser = ApiTestHelpers.NewUserId();
         Guid survivor = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(deletedUser);
-        using HttpClient other = factory.CreateAuthenticatedClient(survivor);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(deletedUser);
+        using HttpClient other = await factory.CreateConfirmedClientAsync(survivor);
         await owner.RegisterAscentAsync(NewAscentBody());
         await other.RegisterAscentAsync(NewAscentBody());
 
@@ -43,7 +43,7 @@ public sealed class UserDeletedConsumerTests(AscentServiceApiFactory factory)
     public async Task Consume_UserDeleted_DeletesTheAttachedPhotosFromStorage()
     {
         Guid userId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(userId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(userId);
         Guid ascentId = await owner.RegisterAscentAsync(NewAscentBody());
         await owner.AddPhotoAsync(ascentId);
         IReadOnlyList<string> publicIds = await factory.ReadPhotoPublicIdsAsync(ascentId);
@@ -59,7 +59,7 @@ public sealed class UserDeletedConsumerTests(AscentServiceApiFactory factory)
     public async Task Consume_SameMessageTwice_LeavesTheAscentsRemoved()
     {
         Guid userId = ApiTestHelpers.NewUserId();
-        using HttpClient owner = factory.CreateAuthenticatedClient(userId);
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(userId);
         await owner.RegisterAscentAsync(NewAscentBody());
         UserDeleted message = NewMessage(userId);
 

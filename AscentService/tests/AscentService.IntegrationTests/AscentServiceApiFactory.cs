@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using AscentService.Application.Abstractions;
+using AscentService.Domain.ConfirmedUsers;
 using AscentService.Infrastructure.Persistence;
 using AscentService.IntegrationTests.Fakes;
 using Common.Contracts.Peaks;
@@ -46,6 +47,58 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
             new AuthenticationHeaderValue("Bearer", _tokenSigning.CreateAccessToken(userId));
 
         return client;
+    }
+
+    public async Task<HttpClient> CreateConfirmedClientAsync(Guid userId)
+    {
+        await ConfirmUserAsync(userId);
+
+        return CreateAuthenticatedClient(userId);
+    }
+
+    public async Task ConfirmUserAsync(Guid userId)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        AscentDbContext context = scope.ServiceProvider.GetRequiredService<AscentDbContext>();
+
+        if (await context.ConfirmedUsers.AnyAsync(confirmed => confirmed.Id == userId))
+        {
+            return;
+        }
+
+        context.ConfirmedUsers.Add(ConfirmedUser.Project(userId, DateTime.UtcNow));
+        await context.SaveChangesAsync();
+    }
+
+    public async Task<bool> IsUserConfirmedAsync(Guid userId)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        AscentDbContext context = scope.ServiceProvider.GetRequiredService<AscentDbContext>();
+
+        return await context.ConfirmedUsers.AsNoTracking().AnyAsync(confirmed => confirmed.Id == userId);
+    }
+
+    public async Task<bool> WaitForUserConfirmationAsync(Guid userId)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            if (await IsUserConfirmedAsync(userId))
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500));
+        }
+
+        return false;
+    }
+
+    public async Task PublishUserEmailConfirmedAsync(UserEmailConfirmed message)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        IPublishEndpoint publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
+
+        await publishEndpoint.Publish(message);
     }
 
     public async Task PublishPeakRenamedAsync(PeakRenamed message)

@@ -16,7 +16,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_WithAValidJpeg_Returns201()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.UploadPhotoAsync(ascentId, ApiTestHelpers.JpegBytes);
@@ -27,7 +27,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_WithAValidJpeg_ExposesItInTheAscentDetail()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         await owner.AddPhotoAsync(ascentId);
@@ -41,7 +41,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_UpToTheLimit_AssignsConsecutivePositions()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         await owner.AddPhotoAsync(ascentId);
@@ -57,7 +57,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_BeyondTheLimit_Returns409()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         for (int index = 0; index < Ascent.MaxPhotos; index++)
@@ -73,7 +73,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_WithAnUnsupportedFormat_Returns400()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.UploadPhotoAsync(ascentId, PdfBytes);
@@ -84,10 +84,10 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_ByAnotherUser_Returns403()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
-        using HttpClient stranger = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         HttpResponseMessage response = await stranger.UploadPhotoAsync(ascentId, ApiTestHelpers.JpegBytes);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -96,7 +96,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_OnAnUnknownAscent_Returns404()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await owner.UploadPhotoAsync(
             Guid.CreateVersion7(), ApiTestHelpers.JpegBytes);
@@ -118,7 +118,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task RemovePhoto_ByTheOwner_Returns204()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
 
@@ -131,7 +131,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task RemovePhoto_InTheMiddle_ReindexesTheSurvivorsWithoutGaps()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         await owner.AddPhotoAsync(ascentId);
         AscentPhotoResponse middle = await owner.AddPhotoAsync(ascentId);
@@ -148,7 +148,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task RemovePhoto_ByTheOwner_DeletesItFromRemoteStorage()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
         string publicId = PublicIdOf(photo);
@@ -163,7 +163,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task RemovePhoto_WithAnUnknownPhoto_Returns404()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.DeleteAsync(
@@ -175,11 +175,11 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task RemovePhoto_ByAnotherUser_Returns403()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
 
-        using HttpClient stranger = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         HttpResponseMessage response = await stranger.DeleteAsync(
             $"{ApiTestHelpers.AscentRoute(ascentId)}/photos/{photo.Id}");
 
@@ -189,7 +189,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task RemovePhoto_WhenRemoteStorageFails_StillRemovesThePhotoLocally()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
         factory.PhotoStorage.FailNextDeletions(PublicIdOf(photo), attempts: 2);
@@ -204,7 +204,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task RemovePhoto_WhenRemoteStorageRecovers_RetriesTheRemoteDeletion()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
         string publicId = PublicIdOf(photo);
@@ -220,7 +220,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task AddPhoto_WithAnOversizedImage_Returns400()
     {
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.UploadPhotoAsync(ascentId, OversizedJpeg());

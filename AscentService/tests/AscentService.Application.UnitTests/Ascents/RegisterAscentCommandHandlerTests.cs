@@ -14,6 +14,10 @@ public sealed class RegisterAscentCommandHandlerTests
 {
     private readonly IAscentRepository _ascentRepository = Substitute.For<IAscentRepository>();
     private readonly IPeakCatalog _peakCatalog = Substitute.For<IPeakCatalog>();
+
+    private readonly IConfirmedUserDirectory _confirmedUserDirectory =
+        Substitute.For<IConfirmedUserDirectory>();
+
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
 
@@ -22,8 +26,31 @@ public sealed class RegisterAscentCommandHandlerTests
     public RegisterAscentCommandHandlerTests()
     {
         _dateTimeProvider.Today.Returns(AscentFactory.Today);
+        _confirmedUserDirectory.IsConfirmedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         _handler = new RegisterAscentCommandHandler(
-            _ascentRepository, _peakCatalog, _unitOfWork, _dateTimeProvider);
+            _ascentRepository, _peakCatalog, _confirmedUserDirectory, _unitOfWork, _dateTimeProvider);
+    }
+
+    [Fact]
+    public async Task Handle_WithAnUnconfirmedEmail_ReturnsEmailNotConfirmed()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+        _confirmedUserDirectory.IsConfirmedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        Result<Guid> result = await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        result.Error.Should().Be(AscentErrors.EmailNotConfirmed);
+    }
+
+    [Fact]
+    public async Task Handle_WithAnUnconfirmedEmail_DoesNotPersistAnything()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+        _confirmedUserDirectory.IsConfirmedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

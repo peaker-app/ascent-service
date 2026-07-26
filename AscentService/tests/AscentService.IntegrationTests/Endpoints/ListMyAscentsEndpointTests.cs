@@ -14,7 +14,7 @@ public sealed class ListMyAscentsEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task ListMine_ReturnsTheAscentsInDescendingDateOrder()
     {
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         await client.RegisterAscentAsync(Body("2024-05-10"));
         await client.RegisterAscentAsync(Body("2026-01-20"));
         await client.RegisterAscentAsync(Body("2025-08-03"));
@@ -28,7 +28,7 @@ public sealed class ListMyAscentsEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task ListMine_ReturnsBothPublicAndPrivateAscents()
     {
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         await client.RegisterAscentAsync(Body(visibility: AscentVisibility.Public));
         await client.RegisterAscentAsync(Body(visibility: AscentVisibility.Private));
 
@@ -42,7 +42,7 @@ public sealed class ListMyAscentsEndpointTests(AscentServiceApiFactory factory)
     public async Task ListMine_WhenTheProfileIsPrivate_StillReturnsEverythingOfTheOwner()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
-        using HttpClient client = factory.CreateAuthenticatedClient(ownerId);
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ownerId);
         await client.RegisterAscentAsync(Body(visibility: AscentVisibility.Public));
         await client.RegisterAscentAsync(Body(visibility: AscentVisibility.Private));
 
@@ -57,10 +57,10 @@ public sealed class ListMyAscentsEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task ListMine_NeverReturnsAnotherUserAscents()
     {
-        using HttpClient stranger = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         await stranger.RegisterAscentAsync(Body());
 
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         PagedResponse<AscentSummaryResponse>? page = await client
             .GetFromJsonAsync<PagedResponse<AscentSummaryResponse>>("/api/ascents");
 
@@ -70,7 +70,7 @@ public sealed class ListMyAscentsEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task ListMine_WithAPageSizeOverTheLimit_Returns400()
     {
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
 
         HttpResponseMessage response = await client.GetAsync("/api/ascents?page=1&size=101");
 
@@ -80,7 +80,7 @@ public sealed class ListMyAscentsEndpointTests(AscentServiceApiFactory factory)
     [Fact]
     public async Task ListMine_WithAnExplicitPage_HonoursTheRequestedSize()
     {
-        using HttpClient client = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient client = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         await client.RegisterAscentAsync(Body("2024-05-10"));
         await client.RegisterAscentAsync(Body("2025-05-10"));
         await client.RegisterAscentAsync(Body("2026-05-10"));

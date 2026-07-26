@@ -12,7 +12,7 @@ public sealed class PeakRenamedConsumerTests(AscentServiceApiFactory factory)
     public async Task Consume_WithARenamedPeak_UpdatesTheDenormalisedName()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register("Cervino", 4478);
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(BodyFor(peak));
 
         await factory.PublishPeakRenamedAsync(RenameOf(peak, "Matterhorn"));
@@ -26,7 +26,7 @@ public sealed class PeakRenamedConsumerTests(AscentServiceApiFactory factory)
     public async Task Consume_WithADuplicatedMessage_LeavesTheAscentUnchanged()
     {
         PeakSnapshot peak = factory.PeakCatalog.Register("Cervino", 4478);
-        using HttpClient owner = factory.CreateAuthenticatedClient(ApiTestHelpers.NewUserId());
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(BodyFor(peak));
 
         PeakRenamed message = RenameOf(peak, "Matterhorn");

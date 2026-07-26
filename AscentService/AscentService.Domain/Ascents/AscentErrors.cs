@@ -36,6 +36,10 @@ public static class AscentErrors
     public static readonly Error NotOwned =
         Error.Forbidden("Ascent.NotOwned", "La ascensión pertenece a otro usuario.");
 
+    public static readonly Error EmailNotConfirmed = Error.Forbidden(
+        "Ascent.EmailNotConfirmed",
+        "Confirma tu dirección de correo antes de registrar ascensiones.");
+
     public static readonly Error PeakCatalogUnavailable = Error.Unavailable(
         "Ascent.PeakCatalogUnavailable",
         "El catálogo de picos no está disponible. Inténtalo de nuevo en unos instantes.");

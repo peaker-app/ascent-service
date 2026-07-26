@@ -1,6 +1,7 @@
 using AscentService.Application.Abstractions;
 using AscentService.Domain.Ascents;
 using AscentService.Domain.Ascents.Events;
+using AscentService.Domain.ConfirmedUsers;
 using AscentService.Infrastructure.ExternalServices;
 using AscentService.Infrastructure.Messaging;
 using AscentService.Infrastructure.Messaging.Consumers;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         {
             bus.AddConsumer<PeakRenamedConsumer>();
             bus.AddConsumer<UserDeletedConsumer>();
+            bus.AddConsumer<UserEmailConfirmedConsumer>();
         });
         services.AddDomainEventHandlers();
 
@@ -47,6 +49,8 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AscentDbContext>());
         services.AddScoped<IAscentRepository, AscentRepository>();
         services.AddScoped<IAscentReader, AscentReader>();
+        services.AddScoped<IConfirmedUserRepository, ConfirmedUserRepository>();
+        services.AddScoped<IConfirmedUserDirectory, ConfirmedUserDirectory>();
         services.AddHostedService<OutboxProcessor<AscentDbContext>>();
     }
 

@@ -1,4 +1,5 @@
 using AscentService.Domain.Ascents;
+using AscentService.Domain.ConfirmedUsers;
 using Common.Application.Abstractions;
 using Common.Infrastructure.Persistence.Idempotency;
 using Common.Infrastructure.Persistence.Outbox;
@@ -9,6 +10,8 @@ namespace AscentService.Infrastructure.Persistence;
 public sealed class AscentDbContext(DbContextOptions<AscentDbContext> options) : DbContext(options), IUnitOfWork
 {
     public DbSet<Ascent> Ascents => Set<Ascent>();
+
+    public DbSet<ConfirmedUser> ConfirmedUsers => Set<ConfirmedUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
