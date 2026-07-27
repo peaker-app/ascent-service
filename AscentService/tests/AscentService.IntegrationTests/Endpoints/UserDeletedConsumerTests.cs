@@ -81,6 +81,7 @@ public sealed class UserDeletedConsumerTests(AscentServiceApiFactory factory)
 
     private static UserDeleted NewMessage(Guid userId) => new()
     {
+        MessageId = Guid.CreateVersion7(),
         UserId = userId,
         OccurredAtUtc = DateTime.UtcNow
     };

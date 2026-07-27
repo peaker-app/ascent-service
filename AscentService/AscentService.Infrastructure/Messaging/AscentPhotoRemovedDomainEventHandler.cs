@@ -7,6 +7,9 @@ namespace AscentService.Infrastructure.Messaging;
 internal sealed class AscentPhotoRemovedDomainEventHandler(IPhotoStorage photoStorage)
     : IDomainEventHandler<AscentPhotoRemovedDomainEvent>
 {
-    public Task Handle(AscentPhotoRemovedDomainEvent domainEvent, CancellationToken cancellationToken) =>
+    public Task Handle(
+        AscentPhotoRemovedDomainEvent domainEvent,
+        DomainEventContext context,
+        CancellationToken cancellationToken) =>
         photoStorage.DeleteAsync(domainEvent.CloudinaryPublicId, cancellationToken);
 }

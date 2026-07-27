@@ -75,11 +75,34 @@ internal sealed class AddAscentPhotoCommandHandler(
 
         if (photo.IsFailure)
         {
+            await photoStorage.TryDeleteAsync(stored.PublicId, cancellationToken);
+
             return Result.Failure<AscentPhotoResponse>(photo.Error);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await SaveOrDiscardAsync(stored, cancellationToken);
 
         return photo.Value.ToResponse();
+    }
+
+    // Motivo: la foto ya está en Cloudinary. Si el cambio local no llega a persistirse —el índice
+    // único de (ascent_id, position) rechaza dos subidas simultáneas— el binario quedaría huérfano
+    // y sin public_id almacenado, imposible de borrar después (DESIGN.md §9).
+    private async Task SaveOrDiscardAsync(StoredPhoto stored, CancellationToken cancellationToken)
+    {
+        bool persisted = false;
+
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            persisted = true;
+        }
+        finally
+        {
+            if (!persisted)
+            {
+                await photoStorage.TryDeleteAsync(stored.PublicId, cancellationToken);
+            }
+        }
     }
 }

@@ -54,7 +54,12 @@ public sealed class UserEmailConfirmedConsumerTests(AscentServiceApiFactory fact
         Guid userId = ApiTestHelpers.NewUserId();
         await factory.ConfirmUserAsync(userId);
 
-        await factory.PublishUserDeletedAsync(new UserDeleted { UserId = userId, OccurredAtUtc = DateTime.UtcNow });
+        await factory.PublishUserDeletedAsync(new UserDeleted
+        {
+            MessageId = Guid.CreateVersion7(),
+            UserId = userId,
+            OccurredAtUtc = DateTime.UtcNow
+        });
         await Task.Delay(TimeSpan.FromSeconds(2));
 
         (await factory.IsUserConfirmedAsync(userId)).Should().BeFalse();
@@ -69,6 +74,7 @@ public sealed class UserEmailConfirmedConsumerTests(AscentServiceApiFactory fact
 
     private static UserEmailConfirmed NewMessage(Guid userId) => new()
     {
+        MessageId = Guid.CreateVersion7(),
         UserId = userId,
         OccurredAtUtc = DateTime.UtcNow
     };

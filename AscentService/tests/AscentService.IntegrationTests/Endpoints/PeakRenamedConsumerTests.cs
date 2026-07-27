@@ -43,6 +43,7 @@ public sealed class PeakRenamedConsumerTests(AscentServiceApiFactory factory)
 
     private static PeakRenamed RenameOf(PeakSnapshot peak, string newName) => new()
     {
+        MessageId = Guid.CreateVersion7(),
         PeakId = peak.PeakId,
         Name = newName,
         AltitudeM = peak.AltitudeMeters,

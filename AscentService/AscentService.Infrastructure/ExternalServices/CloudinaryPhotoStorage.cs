@@ -69,6 +69,20 @@ internal sealed class CloudinaryPhotoStorage : IPhotoStorage
         throw new PhotoStorageException($"Cloudinary did not confirm the deletion of '{publicId}'.");
     }
 
+    public async Task TryDeleteAsync(string publicId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await DeleteAsync(publicId, cancellationToken);
+        }
+        catch (PhotoStorageException exception)
+        {
+            // Motivo: compensar una subida que no llegó a persistirse es best-effort. Si Cloudinary
+            // no confirma el borrado no puede convertirse el error del caso de uso en un 500.
+            _logger.LogError(exception, "Orphaned Cloudinary photo {PublicId} could not be removed", publicId);
+        }
+    }
+
     private static bool IsConfirmed(DeletionResult result) =>
         result.Error is null &&
         (string.Equals(result.Result, DeletedOutcome, StringComparison.OrdinalIgnoreCase) ||

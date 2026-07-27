@@ -5,20 +5,23 @@ using MassTransit;
 
 namespace AscentService.Infrastructure.Messaging;
 
-internal sealed class AscentUpdatedDomainEventHandler(
-    IPublishEndpoint publishEndpoint,
-    IDateTimeProvider dateTimeProvider) : IDomainEventHandler<AscentUpdatedDomainEvent>
+internal sealed class AscentUpdatedDomainEventHandler(IPublishEndpoint publishEndpoint)
+    : IDomainEventHandler<AscentUpdatedDomainEvent>
 {
-    public Task Handle(AscentUpdatedDomainEvent domainEvent, CancellationToken cancellationToken) =>
+    public Task Handle(
+        AscentUpdatedDomainEvent domainEvent,
+        DomainEventContext context,
+        CancellationToken cancellationToken) =>
         publishEndpoint.Publish(
             new AscentUpdated
             {
+                MessageId = context.MessageId,
+                OccurredAtUtc = context.OccurredAtUtc,
                 AscentId = domainEvent.AscentId,
                 UserId = domainEvent.UserId,
                 PeakId = domainEvent.PeakId,
                 AscentDate = domainEvent.AscentDate,
-                Visibility = domainEvent.Visibility,
-                OccurredAtUtc = dateTimeProvider.UtcNow
+                Visibility = domainEvent.Visibility
             },
             cancellationToken);
 }

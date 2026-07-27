@@ -7,6 +7,7 @@ using Common.Application.Abstractions;
 using Common.Domain.Results;
 using FluentAssertions;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using Xunit;
 
 namespace AscentService.Application.UnitTests.Ascents;
@@ -154,6 +155,45 @@ public sealed class AddAscentPhotoCommandHandlerTests
 
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_WhenPersistenceFails_RemovesTheOrphanedPhotoFromStorage()
+    {
+        Ascent ascent = GivenAnExistingAscent();
+        _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("ux_ascent_photo_position"));
+
+        Func<Task> attach = () => _handler.Handle(CommandFor(ascent), CancellationToken.None);
+
+        await attach.Should().ThrowAsync<InvalidOperationException>();
+        await _photoStorage.Received(1)
+            .TryDeleteAsync(AscentFactory.StoredPhoto().PublicId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenTheAggregateRejectsThePhoto_RemovesTheOrphanedPhotoFromStorage()
+    {
+        Ascent ascent = GivenAnExistingAscent();
+        FillTheLastSlotBehindTheEligibilityCheck(ascent);
+
+        await _handler.Handle(CommandFor(ascent), CancellationToken.None);
+
+        await _photoStorage.Received(1)
+            .TryDeleteAsync(AscentFactory.StoredPhoto().PublicId, Arg.Any<CancellationToken>());
+    }
+
+    private void FillTheLastSlotBehindTheEligibilityCheck(Ascent ascent) =>
+        _photoStorage.UploadAsync(Arg.Any<PhotoFile>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                for (int index = 0; index < Ascent.MaxPhotos; index++)
+                {
+                    ascent.AddPhoto(
+                        new PhotoUpload($"public-{index}", $"https://cdn/{index}.jpg", 800, 600), DateTime.UnixEpoch);
+                }
+
+                return Result.Success(AscentFactory.StoredPhoto());
+            });
 
     private static AddAscentPhotoCommand CommandFor(Ascent ascent) =>
         new(ascent.Id, AscentFactory.OwnerId, AscentFactory.PhotoFile());

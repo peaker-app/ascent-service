@@ -11,4 +11,6 @@ public interface IPhotoStorage
     Task<Result<StoredPhoto>> UploadAsync(PhotoFile file, CancellationToken cancellationToken);
 
     Task DeleteAsync(string publicId, CancellationToken cancellationToken);
+
+    Task TryDeleteAsync(string publicId, CancellationToken cancellationToken);
 }
