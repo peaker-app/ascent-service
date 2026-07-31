@@ -114,7 +114,10 @@ public sealed class AscentsController(ISender sender, IUserContext userContext) 
 
     [HttpPost("{id:guid}/photos")]
     [Authorize]
+#pragma warning disable S5693 // Motivo: RF-FOT-01 fija 10 MB por foto, por encima del umbral por
+    // defecto de la regla; el margen extra de 64 KiB cubre la sobrecarga del multipart.
     [RequestSizeLimit(AddAscentPhotoCommand.MaxRequestSizeInBytes)]
+#pragma warning restore S5693
     [ProducesResponseType(typeof(AscentPhotoResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -154,7 +157,7 @@ public sealed class AscentsController(ISender sender, IUserContext userContext) 
 
     private static async Task<PhotoFile> ReadPhotoAsync(IFormFile file, CancellationToken cancellationToken)
     {
-        using var stream = new MemoryStream();
+        using MemoryStream stream = new();
         await file.CopyToAsync(stream, cancellationToken);
 
         return new PhotoFile(stream.ToArray(), file.ContentType, file.FileName);

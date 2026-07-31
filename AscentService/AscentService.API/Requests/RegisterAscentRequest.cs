@@ -1,11 +1,12 @@
+using System.Text.Json.Serialization;
 using AscentService.Application.Ascents.RegisterAscent;
 using AscentService.Domain.Ascents;
 
 namespace AscentService.API.Requests;
 
 public sealed record RegisterAscentRequest(
-    Guid PeakId,
-    DateOnly AscentDate,
+    [property: JsonRequired] Guid PeakId,
+    [property: JsonRequired] DateOnly AscentDate,
     string? Companions,
     string? RouteNotes,
     SnowCondition? Snow,

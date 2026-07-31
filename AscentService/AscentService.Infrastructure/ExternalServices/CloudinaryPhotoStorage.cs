@@ -29,9 +29,9 @@ internal sealed class CloudinaryPhotoStorage : IPhotoStorage
 
     public async Task<Result<StoredPhoto>> UploadAsync(PhotoFile file, CancellationToken cancellationToken)
     {
-        using var stream = new MemoryStream(file.Content.ToArray());
+        using MemoryStream stream = new(file.Content.ToArray());
 
-        var uploadParameters = new ImageUploadParams
+        ImageUploadParams uploadParameters = new()
         {
             File = new FileDescription(file.FileName, stream),
             Folder = _options.Folder,

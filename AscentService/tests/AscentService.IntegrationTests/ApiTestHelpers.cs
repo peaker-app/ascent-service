@@ -38,8 +38,8 @@ internal static class ApiTestHelpers
         Guid ascentId,
         byte[] content)
     {
-        using var form = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(content);
+        using MultipartFormDataContent form = [];
+        ByteArrayContent fileContent = new(content);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
         form.Add(fileContent, "file", "cumbre.jpg");
 

@@ -9,6 +9,7 @@ namespace AscentService.Infrastructure.Persistence.Configurations;
 internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
 {
     private const int VisibilityLength = 20;
+    private const string AscentIdColumn = "ascent_id";
 
     public override void Configure(EntityTypeBuilder<Ascent> builder)
     {
@@ -75,11 +76,11 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
         builder.OwnsMany(ascent => ascent.Photos, photo =>
         {
             photo.ToTable("ascent_photos");
-            photo.WithOwner().HasForeignKey("ascent_id");
+            photo.WithOwner().HasForeignKey(AscentIdColumn);
             photo.HasKey(entity => entity.Id);
 
             photo.Property(entity => entity.Id).HasColumnName("id").ValueGeneratedNever();
-            photo.Property<Guid>("ascent_id").HasColumnName("ascent_id");
+            photo.Property<Guid>(AscentIdColumn).HasColumnName(AscentIdColumn);
             photo.Property(entity => entity.CloudinaryPublicId)
                 .HasColumnName("cloudinary_public_id").HasMaxLength(PhotoUpload.MaxPublicIdLength).IsRequired();
             photo.Property(entity => entity.SecureUrl)
@@ -89,7 +90,7 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
             photo.Property(entity => entity.Position).HasColumnName("position").IsRequired();
             photo.Property(entity => entity.UploadedAtUtc).HasColumnName("uploaded_at_utc").IsRequired();
 
-            photo.HasIndex("ascent_id", nameof(AscentPhoto.Position))
+            photo.HasIndex(AscentIdColumn, nameof(AscentPhoto.Position))
                 .IsUnique().HasDatabaseName("ux_ascent_photo_position");
         });
 

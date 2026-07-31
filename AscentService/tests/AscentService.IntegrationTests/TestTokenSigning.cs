@@ -19,7 +19,7 @@ internal sealed class TestTokenSigning : IDisposable
     {
         DateTime now = DateTime.UtcNow;
 
-        var descriptor = new SecurityTokenDescriptor
+        SecurityTokenDescriptor descriptor = new()
         {
             Issuer = Issuer,
             Audience = Audience,

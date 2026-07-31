@@ -1,10 +1,11 @@
+using System.Text.Json.Serialization;
 using AscentService.Application.Ascents.UpdateAscent;
 using AscentService.Domain.Ascents;
 
 namespace AscentService.API.Requests;
 
 public sealed record UpdateAscentRequest(
-    DateOnly AscentDate,
+    [property: JsonRequired] DateOnly AscentDate,
     string? Companions,
     string? RouteNotes,
     SnowCondition? Snow,

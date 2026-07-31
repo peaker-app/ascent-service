@@ -223,7 +223,7 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
 
     private Dictionary<string, string?> BuildSettings()
     {
-        var rabbitUri = new Uri(_rabbitMq.GetConnectionString());
+        Uri rabbitUri = new(_rabbitMq.GetConnectionString());
         string[] credentials = rabbitUri.UserInfo.Split(':');
 
         return new Dictionary<string, string?>
