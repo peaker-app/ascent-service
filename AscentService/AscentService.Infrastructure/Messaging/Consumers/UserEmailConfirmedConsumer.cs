@@ -26,7 +26,7 @@ internal sealed class UserEmailConfirmedConsumer(
         }
 
         Result result = await sender.Send(
-            new ConfirmUserCommand(message.UserId, message.OccurredAtUtc), cancellationToken);
+            new ConfirmUserCommand(message.UserId, RestoreUtcKind(message.OccurredAtUtc)), cancellationToken);
 
         if (result.IsFailure)
         {
@@ -42,6 +42,9 @@ internal sealed class UserEmailConfirmedConsumer(
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    private static DateTime RestoreUtcKind(DateTime occurredAtUtc) =>
+        DateTime.SpecifyKind(occurredAtUtc, DateTimeKind.Utc);
 
     private Task<bool> IsAlreadyProcessedAsync(Guid messageId, CancellationToken cancellationToken) =>
         dbContext.Set<ProcessedMessage>().AnyAsync(message => message.MessageId == messageId, cancellationToken);

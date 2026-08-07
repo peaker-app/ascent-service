@@ -35,6 +35,21 @@ public sealed class UserEmailConfirmedConsumerTests(AscentServiceApiFactory fact
     }
 
     [Fact]
+    public async Task Consume_WhenTheEventCarriesADateTimeWithoutKind_StillProjectsTheConfirmation()
+    {
+        Guid userId = ApiTestHelpers.NewUserId();
+
+        await factory.PublishUserEmailConfirmedAsync(new UserEmailConfirmed
+        {
+            MessageId = Guid.CreateVersion7(),
+            UserId = userId,
+            OccurredAtUtc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified)
+        });
+
+        (await factory.WaitForUserConfirmationAsync(userId)).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Consume_SameMessageTwice_KeepsTheUserConfirmedOnce()
     {
         Guid userId = ApiTestHelpers.NewUserId();
