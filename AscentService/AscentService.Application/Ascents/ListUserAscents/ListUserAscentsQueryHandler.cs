@@ -1,5 +1,6 @@
 using AscentService.Application.Abstractions;
 using AscentService.Application.Ascents.ListMyAscents;
+using AscentService.Application.Ascents.Mappings;
 using AscentService.Domain.Ascents;
 using Common.Application.Messaging;
 using Common.Application.Pagination;
@@ -9,7 +10,8 @@ namespace AscentService.Application.Ascents.ListUserAscents;
 
 internal sealed class ListUserAscentsQueryHandler(
     IAscentReader ascentReader,
-    IProfileDirectory profileDirectory)
+    IProfileDirectory profileDirectory,
+    IPhotoUrlSigner photoUrlSigner)
     : IQueryHandler<ListUserAscentsQuery, PagedResult<AscentSummaryResponse>>
 {
     public async Task<Result<PagedResult<AscentSummaryResponse>>> Handle(
@@ -18,9 +20,15 @@ internal sealed class ListUserAscentsQueryHandler(
     {
         Result validation = await ValidateAsync(query, cancellationToken);
 
-        return validation.IsFailure
-            ? Result.Failure<PagedResult<AscentSummaryResponse>>(validation.Error)
-            : await ascentReader.ListPublicByUserAsync(query.TargetUserId, query.Page, cancellationToken);
+        if (validation.IsFailure)
+        {
+            return Result.Failure<PagedResult<AscentSummaryResponse>>(validation.Error);
+        }
+
+        PagedResult<AscentSummaryRow> page =
+            await ascentReader.ListPublicByUserAsync(query.TargetUserId, query.Page, cancellationToken);
+
+        return page.ToResponse(photoUrlSigner);
     }
 
     private async Task<Result> ValidateAsync(ListUserAscentsQuery query, CancellationToken cancellationToken)

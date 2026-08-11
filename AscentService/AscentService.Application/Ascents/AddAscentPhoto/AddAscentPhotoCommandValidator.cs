@@ -11,6 +11,9 @@ internal sealed class AddAscentPhotoCommandValidator : AbstractValidator<AddAsce
         RuleFor(command => command.File).NotNull();
 
         When(command => command.File is not null, () =>
-            RuleFor(command => command.File.Content.Length).GreaterThan(0));
+        {
+            RuleFor(command => command.File.Content.Length).GreaterThan(0);
+            RuleFor(command => command.File.FileName).NotEmpty();
+        });
     }
 }

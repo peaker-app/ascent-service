@@ -88,7 +88,7 @@ public sealed class RemoveAscentPhotoCommandHandlerTests
         for (int index = 0; index < photoCount; index++)
         {
             ascent.AddPhoto(
-                new PhotoUpload($"public-{index}", $"https://cdn/{index}.jpg", 800, 600), DateTime.UnixEpoch);
+                AscentFactory.PhotoUpload(index), DateTime.UnixEpoch);
         }
 
         _ascentRepository.GetByIdAsync(ascent.Id, Arg.Any<CancellationToken>()).Returns(ascent);

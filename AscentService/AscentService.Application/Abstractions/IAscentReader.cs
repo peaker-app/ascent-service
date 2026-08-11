@@ -5,12 +5,12 @@ namespace AscentService.Application.Abstractions;
 
 public interface IAscentReader
 {
-    Task<PagedResult<AscentSummaryResponse>> ListByUserAsync(
+    Task<PagedResult<AscentSummaryRow>> ListByUserAsync(
         Guid userId,
         PageRequest page,
         CancellationToken cancellationToken);
 
-    Task<PagedResult<AscentSummaryResponse>> ListPublicByUserAsync(
+    Task<PagedResult<AscentSummaryRow>> ListPublicByUserAsync(
         Guid userId,
         PageRequest page,
         CancellationToken cancellationToken);

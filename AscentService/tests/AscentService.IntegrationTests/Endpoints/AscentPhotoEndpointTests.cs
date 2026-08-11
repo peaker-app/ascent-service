@@ -12,6 +12,10 @@ namespace AscentService.IntegrationTests.Endpoints;
 public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
 {
     private static readonly byte[] PdfBytes = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34];
+    private static readonly byte[] PngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01];
+
+    private static readonly byte[] SvgBytes = System.Text.Encoding.UTF8.GetBytes(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>");
 
     [Fact]
     public async Task AddPhoto_WithAValidJpeg_Returns201()
@@ -77,6 +81,30 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.UploadPhotoAsync(ascentId, PdfBytes);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AddPhoto_WithAnSvgDisguisedAsJpeg_Returns400()
+    {
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
+        Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
+
+        HttpResponseMessage response = await owner.UploadPhotoAsync(
+            ascentId, SvgBytes, "image/jpeg", "cumbre.jpg");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AddPhoto_WithAPngDeclaredAsJpeg_Returns400()
+    {
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
+        Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
+
+        HttpResponseMessage response = await owner.UploadPhotoAsync(
+            ascentId, PngBytes, "image/jpeg", "cumbre.jpg");
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -151,7 +179,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
         using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
-        string publicId = PublicIdOf(photo);
+        string publicId = await PublicIdOfAsync(ascentId);
 
         await owner.DeleteAsync($"{ApiTestHelpers.AscentRoute(ascentId)}/photos/{photo.Id}");
 
@@ -192,7 +220,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
         using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
-        factory.PhotoStorage.FailNextDeletions(PublicIdOf(photo), attempts: 2);
+        factory.PhotoStorage.FailNextDeletions(await PublicIdOfAsync(ascentId), attempts: 2);
 
         await owner.DeleteAsync($"{ApiTestHelpers.AscentRoute(ascentId)}/photos/{photo.Id}");
 
@@ -207,7 +235,7 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
         using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
         AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
-        string publicId = PublicIdOf(photo);
+        string publicId = await PublicIdOfAsync(ascentId);
         factory.PhotoStorage.FailNextDeletions(publicId, attempts: 1);
 
         await owner.DeleteAsync($"{ApiTestHelpers.AscentRoute(ascentId)}/photos/{photo.Id}");
@@ -236,9 +264,8 @@ public sealed class AscentPhotoEndpointTests(AscentServiceApiFactory factory)
         return content;
     }
 
-    private static string PublicIdOf(AscentPhotoResponse photo) =>
-        photo.SecureUrl.Replace("https://res.cloudinary.test/", string.Empty, StringComparison.Ordinal)
-            .Replace(".jpg", string.Empty, StringComparison.Ordinal);
+    private async Task<string> PublicIdOfAsync(Guid ascentId) =>
+        (await factory.ReadPhotoPublicIdsAsync(ascentId)).Single();
 
     private async Task<bool> WaitForDeletionAsync(string publicId)
     {

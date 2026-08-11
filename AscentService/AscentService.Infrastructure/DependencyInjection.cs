@@ -3,17 +3,20 @@ using AscentService.Domain.Ascents;
 using AscentService.Domain.Ascents.Events;
 using AscentService.Domain.ConfirmedUsers;
 using AscentService.Infrastructure.ExternalServices;
+using AscentService.Infrastructure.Maintenance;
 using AscentService.Infrastructure.Messaging;
 using AscentService.Infrastructure.Messaging.Consumers;
 using AscentService.Infrastructure.Persistence;
 using AscentService.Infrastructure.Persistence.Repositories;
 using Common.Application.Abstractions;
+using Common.Application.Images;
 using Common.Infrastructure.Messaging;
 using Common.Infrastructure.Persistence;
 using Common.Infrastructure.Persistence.Outbox;
 using Common.Infrastructure.Time;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -30,6 +33,7 @@ public static class DependencyInjection
         services.AddEventBus(configuration, bus =>
         {
             bus.AddConsumer<PeakRenamedConsumer>();
+            bus.AddConsumer<PeakUpdatedConsumer>().Endpoint(endpoint => endpoint.Temporary = true);
             bus.AddConsumer<UserDeletedConsumer>();
             bus.AddConsumer<UserEmailConfirmedConsumer>();
         });
@@ -78,7 +82,14 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.Configure<PhotoSweepOptions>(configuration.GetSection(PhotoSweepOptions.SectionName));
+
+        services.AddSingleton<CloudinaryFactory>();
+        services.AddSingleton<IImageValidator, ImageValidator>();
+        services.AddSingleton<IPhotoUrlSigner, CloudinaryPhotoUrlSigner>();
         services.AddScoped<IPhotoStorage, CloudinaryPhotoStorage>();
+        services.AddScoped<IPhotoAssetInventory, CloudinaryPhotoInventory>();
+        services.AddHostedService<OrphanedPhotoSweeper>();
     }
 
     private static void AddExternalServices(this IServiceCollection services, IConfiguration configuration)
@@ -93,8 +104,13 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddHttpClient<IPeakCatalog, PeakCatalogHttpClient>(ConfigurePeakCatalog)
+        services.AddMemoryCache();
+        services.AddHttpClient<PeakCatalogHttpClient>(ConfigurePeakCatalog)
             .AddStandardResilienceHandler();
+
+        services.AddScoped<IPeakCatalog>(provider => new CachingPeakCatalog(
+            provider.GetRequiredService<PeakCatalogHttpClient>(),
+            provider.GetRequiredService<IMemoryCache>()));
 
         services.AddHttpClient<IProfileDirectory, AccountProfileHttpClient>(ConfigureProfileDirectory)
             .AddStandardResilienceHandler();
@@ -122,5 +138,6 @@ public static class DependencyInjection
         services.AddScoped<IDomainEventHandler<AscentUpdatedDomainEvent>, AscentUpdatedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<AscentDeletedDomainEvent>, AscentDeletedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<AscentPhotoRemovedDomainEvent>, AscentPhotoRemovedDomainEventHandler>();
+        services.AddScoped<IDomainEventHandler<AscentPhotoStoredDomainEvent>, AscentPhotoStoredDomainEventHandler>();
     }
 }

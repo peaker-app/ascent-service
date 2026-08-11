@@ -1,17 +1,22 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using AscentService.Application.Abstractions;
+using AscentService.Application.Ascents.SweepOrphanedPhotos;
 using AscentService.Domain.ConfirmedUsers;
+using AscentService.Infrastructure.ExternalServices;
 using AscentService.Infrastructure.Persistence;
 using AscentService.IntegrationTests.Fakes;
 using Common.Contracts.Peaks;
 using Common.Contracts.Users;
+using Common.Domain.Results;
 using MassTransit;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -24,6 +29,8 @@ namespace AscentService.IntegrationTests;
 
 public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private const string TestAuthTokenKey = "00112233445566778899aabbccddeeff";
+
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .WithDatabase("peaker_ascents")
         .WithUsername("peaker")
@@ -39,6 +46,8 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
     internal FakeProfileDirectory ProfileDirectory { get; } = new();
 
     internal FakePhotoStorage PhotoStorage { get; } = new();
+
+    internal FakePhotoAssetInventory PhotoAssetInventory { get; } = new();
 
     public HttpClient CreateAuthenticatedClient(Guid userId)
     {
@@ -101,6 +110,14 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
         await publishEndpoint.Publish(message);
     }
 
+    public async Task PublishPeakUpdatedAsync(PeakUpdated message)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        IPublishEndpoint publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
+
+        await publishEndpoint.Publish(message);
+    }
+
     public async Task PublishPeakRenamedAsync(PeakRenamed message)
     {
         await using AsyncServiceScope scope = Services.CreateAsyncScope();
@@ -127,6 +144,17 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
             .Where(ascent => ascent.Id == ascentId)
             .SelectMany(ascent => ascent.Photos.Select(photo => photo.CloudinaryPublicId))
             .ToListAsync();
+    }
+
+    internal async Task<PhotoSweepResponse> SweepOrphanedPhotosAsync(DateTime uploadedBeforeUtc)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        ISender sender = scope.ServiceProvider.GetRequiredService<ISender>();
+
+        Result<PhotoSweepResponse> result =
+            await sender.Send(new SweepOrphanedPhotosCommand(uploadedBeforeUtc));
+
+        return result.Value;
     }
 
     public async Task<int> CountAscentsAsync(Guid userId)
@@ -189,13 +217,17 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IPeakCatalog>();
-            services.AddSingleton<IPeakCatalog>(PeakCatalog);
+            services.AddScoped<IPeakCatalog>(provider => new CachingPeakCatalog(
+                PeakCatalog, provider.GetRequiredService<IMemoryCache>()));
 
             services.RemoveAll<IProfileDirectory>();
             services.AddSingleton<IProfileDirectory>(ProfileDirectory);
 
             services.RemoveAll<IPhotoStorage>();
             services.AddSingleton<IPhotoStorage>(PhotoStorage);
+
+            services.RemoveAll<IPhotoAssetInventory>();
+            services.AddSingleton<IPhotoAssetInventory>(PhotoAssetInventory);
 
             services.Configure<JwtBearerOptions>(
                 JwtBearerDefaults.AuthenticationScheme, ConfigureTestJwtBearer);
@@ -241,7 +273,9 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
             ["ProfileDirectory:BaseAddress"] = "http://account-service.test/",
             ["Cloudinary:CloudName"] = "test",
             ["Cloudinary:ApiKey"] = "test",
-            ["Cloudinary:ApiSecret"] = "test"
+            ["Cloudinary:ApiSecret"] = "test",
+            ["Cloudinary:AuthTokenKey"] = TestAuthTokenKey,
+            ["PhotoSweep:Enabled"] = "false"
         };
     }
 

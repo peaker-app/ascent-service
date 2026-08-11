@@ -17,7 +17,7 @@ public sealed class GetAscentByIdQueryHandlerTests
     private readonly GetAscentByIdQueryHandler _handler;
 
     public GetAscentByIdQueryHandlerTests() =>
-        _handler = new GetAscentByIdQueryHandler(_ascentRepository, _profileDirectory);
+        _handler = new GetAscentByIdQueryHandler(_ascentRepository, _profileDirectory, AscentFactory.PhotoUrlSigner());
 
     [Fact]
     public async Task Handle_WhenTheOwnerReadsTheirOwnPrivateAscent_ReturnsIt()

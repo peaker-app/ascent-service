@@ -14,6 +14,10 @@ internal sealed class FakePhotoStorage : IPhotoStorage
 
     public ConcurrentBag<string> DeletedPublicIds { get; } = [];
 
+    public ConcurrentBag<string> QuarantinedPublicIds { get; } = [];
+
+    public ConcurrentBag<string> ConfirmedPublicIds { get; } = [];
+
     public bool IsDown { get; set; }
 
     public void FailNextDeletions(string publicIdSuffix, int attempts) =>
@@ -27,10 +31,17 @@ internal sealed class FakePhotoStorage : IPhotoStorage
         }
 
         int index = Interlocked.Increment(ref _uploadCount);
-        StoredPhoto stored = new(
-            $"peaker/test/ascents/photo-{index}", $"https://res.cloudinary.test/photo-{index}.jpg", 1600, 1200);
+        StoredPhoto stored = new($"peaker/test/ascents/photo-{index}", 1600, 1200);
+        QuarantinedPublicIds.Add(stored.PublicId);
 
         return Task.FromResult(Result.Success(stored));
+    }
+
+    public Task ConfirmAsync(string publicId, CancellationToken cancellationToken)
+    {
+        ConfirmedPublicIds.Add(publicId);
+
+        return Task.CompletedTask;
     }
 
     public Task DeleteAsync(string publicId, CancellationToken cancellationToken)

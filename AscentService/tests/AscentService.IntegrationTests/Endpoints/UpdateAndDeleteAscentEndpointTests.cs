@@ -126,11 +126,12 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     {
         using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
-        AscentPhotoResponse photo = await owner.AddPhotoAsync(ascentId);
+        await owner.AddPhotoAsync(ascentId);
+        string publicId = (await factory.ReadPhotoPublicIdsAsync(ascentId)).Single();
 
         await owner.DeleteAsync(ApiTestHelpers.AscentRoute(ascentId));
 
-        bool compensated = await WaitForDeletionAsync(photo.SecureUrl);
+        bool compensated = await WaitForDeletionAsync(publicId);
 
         compensated.Should().BeTrue();
     }
@@ -158,11 +159,8 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    private async Task<bool> WaitForDeletionAsync(string secureUrl)
+    private async Task<bool> WaitForDeletionAsync(string publicId)
     {
-        string publicId = secureUrl.Replace("https://res.cloudinary.test/", string.Empty, StringComparison.Ordinal)
-            .Replace(".jpg", string.Empty, StringComparison.Ordinal);
-
         for (int attempt = 0; attempt < 20; attempt++)
         {
             if (factory.PhotoStorage.DeletedPublicIds.Any(id => id.EndsWith(publicId, StringComparison.Ordinal)))

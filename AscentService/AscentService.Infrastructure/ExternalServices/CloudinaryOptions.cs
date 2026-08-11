@@ -16,5 +16,8 @@ public sealed class CloudinaryOptions
     public string ApiSecret { get; init; } = string.Empty;
 
     [Required]
+    public string AuthTokenKey { get; init; } = string.Empty;
+
+    [Required]
     public string Folder { get; init; } = "peaker/dev/ascents";
 }

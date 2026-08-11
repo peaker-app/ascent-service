@@ -3,6 +3,7 @@ using AscentService.Application.Ascents.GetAscentById;
 using AscentService.Application.Ascents.Mappings;
 using AscentService.Domain.Ascents;
 using Common.Application.Abstractions;
+using Common.Application.Images;
 using Common.Application.Messaging;
 using Common.Domain.Results;
 
@@ -11,6 +12,8 @@ namespace AscentService.Application.Ascents.AddAscentPhoto;
 internal sealed class AddAscentPhotoCommandHandler(
     IAscentRepository ascentRepository,
     IPhotoStorage photoStorage,
+    IPhotoUrlSigner photoUrlSigner,
+    IImageValidator imageValidator,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider) : ICommandHandler<AddAscentPhotoCommand, AscentPhotoResponse>
 {
@@ -36,7 +39,7 @@ internal sealed class AddAscentPhotoCommandHandler(
         return await AttachAsync(ascent!, stored.Value, cancellationToken);
     }
 
-    private static Result CheckEligibility(Ascent? ascent, AddAscentPhotoCommand command)
+    private Result CheckEligibility(Ascent? ascent, AddAscentPhotoCommand command)
     {
         if (ascent is null)
         {
@@ -53,16 +56,16 @@ internal sealed class AddAscentPhotoCommandHandler(
             : Result.Failure(AscentErrors.PhotoLimitReached);
     }
 
-    private static Result CheckContent(PhotoFile file)
+    private Result CheckContent(PhotoFile file)
     {
-        if (file.Content.Length > AddAscentPhotoCommand.MaxSizeInBytes)
-        {
-            return Result.Failure(AscentErrors.PhotoTooLarge);
-        }
+        ImageRejection rejection = imageValidator.Validate(new ImageContent(
+            file.Content,
+            file.ContentType,
+            AddAscentPhotoCommand.MaxSizeInBytes));
 
-        return PhotoContentInspector.IsSupported(file.Content.Span)
+        return rejection is ImageRejection.None
             ? Result.Success()
-            : Result.Failure(AscentErrors.UnsupportedPhotoFormat);
+            : Result.Failure(PhotoRejections.ToError(rejection));
     }
 
     private async Task<Result<AscentPhotoResponse>> AttachAsync(
@@ -70,7 +73,7 @@ internal sealed class AddAscentPhotoCommandHandler(
         StoredPhoto stored,
         CancellationToken cancellationToken)
     {
-        PhotoUpload upload = new(stored.PublicId, stored.SecureUrl, stored.Width, stored.Height);
+        PhotoUpload upload = new(stored.PublicId, stored.Width, stored.Height);
         Result<AscentPhoto> photo = ascent.AddPhoto(upload, dateTimeProvider.UtcNow);
 
         if (photo.IsFailure)
@@ -82,12 +85,9 @@ internal sealed class AddAscentPhotoCommandHandler(
 
         await SaveOrDiscardAsync(stored, cancellationToken);
 
-        return photo.Value.ToResponse();
+        return photo.Value.ToResponse(photoUrlSigner, ascent.Visibility);
     }
 
-    // Motivo: la foto ya está en Cloudinary. Si el cambio local no llega a persistirse —el índice
-    // único de (ascent_id, position) rechaza dos subidas simultáneas— el binario quedaría huérfano
-    // y sin public_id almacenado, imposible de borrar después (DESIGN.md §9).
     private async Task SaveOrDiscardAsync(StoredPhoto stored, CancellationToken cancellationToken)
     {
         bool persisted = false;

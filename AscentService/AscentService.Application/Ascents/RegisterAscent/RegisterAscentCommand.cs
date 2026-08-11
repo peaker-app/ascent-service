@@ -12,5 +12,9 @@ public sealed record RegisterAscentCommand(
     AscentConditions Conditions,
     AscentVisibility Visibility) : ICommand<Guid>
 {
+    public Guid? ClientAscentId { get; init; }
+
     public AscentDetails ToDetails() => new(AscentDate, Companions, RouteNotes, Conditions, Visibility);
+
+    public Guid? DeduplicationKey => ClientAscentId is { } key && key != Guid.Empty ? key : null;
 }

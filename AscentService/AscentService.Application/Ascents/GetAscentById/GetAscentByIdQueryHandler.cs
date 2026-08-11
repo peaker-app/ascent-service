@@ -8,7 +8,8 @@ namespace AscentService.Application.Ascents.GetAscentById;
 
 internal sealed class GetAscentByIdQueryHandler(
     IAscentRepository ascentRepository,
-    IProfileDirectory profileDirectory) : IQueryHandler<GetAscentByIdQuery, AscentResponse>
+    IProfileDirectory profileDirectory,
+    IPhotoUrlSigner photoUrlSigner) : IQueryHandler<GetAscentByIdQuery, AscentResponse>
 {
     public async Task<Result<AscentResponse>> Handle(
         GetAscentByIdQuery query,
@@ -23,13 +24,13 @@ internal sealed class GetAscentByIdQueryHandler(
 
         if (query.RequesterId == ascent.UserId)
         {
-            return ascent.ToResponse();
+            return ascent.ToResponse(photoUrlSigner);
         }
 
         Result ownerIsReachable = await EnsureOwnerProfileIsPublicAsync(ascent, cancellationToken);
 
         return ownerIsReachable.IsSuccess
-            ? ascent.ToResponse()
+            ? ascent.ToResponse(photoUrlSigner)
             : Result.Failure<AscentResponse>(ownerIsReachable.Error);
     }
 

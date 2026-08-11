@@ -20,6 +20,24 @@ internal sealed class RegisterAscentCommandHandler(
             return Result.Failure<Guid>(AscentErrors.EmailNotConfirmed);
         }
 
+        Ascent? alreadyRegistered = await FindAlreadyRegisteredAsync(command, cancellationToken);
+
+        return alreadyRegistered is not null
+            ? alreadyRegistered.Id
+            : await RegisterNewAsync(command, cancellationToken);
+    }
+
+    private Task<Ascent?> FindAlreadyRegisteredAsync(
+        RegisterAscentCommand command,
+        CancellationToken cancellationToken) =>
+        command.DeduplicationKey is { } key
+            ? ascentRepository.GetByClientAscentIdAsync(command.UserId, key, cancellationToken)
+            : Task.FromResult<Ascent?>(null);
+
+    private async Task<Result<Guid>> RegisterNewAsync(
+        RegisterAscentCommand command,
+        CancellationToken cancellationToken)
+    {
         Result<PeakSnapshot> peak = await peakCatalog.GetSnapshotAsync(command.PeakId, cancellationToken);
 
         if (peak.IsFailure)
@@ -27,7 +45,9 @@ internal sealed class RegisterAscentCommandHandler(
             return Result.Failure<Guid>(peak.Error);
         }
 
-        AscentDraft draft = new(command.UserId, peak.Value, command.ToDetails());
+        AscentDraft draft = new(
+            command.UserId, peak.Value, command.ToDetails(), command.DeduplicationKey);
+
         Result<Ascent> ascent = Ascent.Create(draft, dateTimeProvider.Today);
 
         if (ascent.IsFailure)

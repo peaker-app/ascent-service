@@ -4,6 +4,7 @@ using AscentService.Application.Ascents.GetAscentById;
 using AscentService.Application.UnitTests.TestData;
 using AscentService.Domain.Ascents;
 using Common.Application.Abstractions;
+using Common.Application.Images;
 using Common.Domain.Results;
 using FluentAssertions;
 using NSubstitute;
@@ -16,6 +17,7 @@ public sealed class AddAscentPhotoCommandHandlerTests
 {
     private readonly IAscentRepository _ascentRepository = Substitute.For<IAscentRepository>();
     private readonly IPhotoStorage _photoStorage = Substitute.For<IPhotoStorage>();
+    private readonly IPhotoUrlSigner _photoUrlSigner = AscentFactory.PhotoUrlSigner();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
 
@@ -28,17 +30,29 @@ public sealed class AddAscentPhotoCommandHandlerTests
             .Returns(Result.Success(AscentFactory.StoredPhoto()));
 
         _handler = new AddAscentPhotoCommandHandler(
-            _ascentRepository, _photoStorage, _unitOfWork, _dateTimeProvider);
+            _ascentRepository, _photoStorage, _photoUrlSigner, new ImageValidator(), _unitOfWork, _dateTimeProvider);
     }
 
     [Fact]
-    public async Task Handle_WithAValidJpeg_ReturnsThePersistedPhoto()
+    public async Task Handle_WithAValidJpeg_ReturnsASignedUrlThatExpires()
     {
         Ascent ascent = GivenAnExistingAscent();
 
         Result<AscentPhotoResponse> result = await _handler.Handle(CommandFor(ascent), CancellationToken.None);
 
-        result.Value.SecureUrl.Should().Be(AscentFactory.StoredPhoto().SecureUrl);
+        result.Value.SecureUrl.Should().Be(
+            AscentFactory.SignedUrlFor(AscentFactory.StoredPhoto().PublicId, TimeSpan.FromHours(24)));
+    }
+
+    [Fact]
+    public async Task Handle_OnAPrivateAscent_SignsTheUrlWithTheShortLifetime()
+    {
+        Ascent ascent = GivenAnExistingAscent(visibility: AscentVisibility.Private);
+
+        Result<AscentPhotoResponse> result = await _handler.Handle(CommandFor(ascent), CancellationToken.None);
+
+        result.Value.SecureUrl.Should().Be(
+            AscentFactory.SignedUrlFor(AscentFactory.StoredPhoto().PublicId, TimeSpan.FromMinutes(10)));
     }
 
     [Fact]
@@ -189,7 +203,7 @@ public sealed class AddAscentPhotoCommandHandlerTests
                 for (int index = 0; index < Ascent.MaxPhotos; index++)
                 {
                     ascent.AddPhoto(
-                        new PhotoUpload($"public-{index}", $"https://cdn/{index}.jpg", 800, 600), DateTime.UnixEpoch);
+                        AscentFactory.PhotoUpload(index), DateTime.UnixEpoch);
                 }
 
                 return Result.Success(AscentFactory.StoredPhoto());
@@ -198,14 +212,16 @@ public sealed class AddAscentPhotoCommandHandlerTests
     private static AddAscentPhotoCommand CommandFor(Ascent ascent) =>
         new(ascent.Id, AscentFactory.OwnerId, AscentFactory.PhotoFile());
 
-    private Ascent GivenAnExistingAscent(int photoCount = 0)
+    private Ascent GivenAnExistingAscent(
+        int photoCount = 0,
+        AscentVisibility visibility = AscentVisibility.Public)
     {
-        Ascent ascent = AscentFactory.Registered();
+        Ascent ascent = AscentFactory.Registered(visibility);
 
         for (int index = 0; index < photoCount; index++)
         {
             ascent.AddPhoto(
-                new PhotoUpload($"public-{index}", $"https://cdn/{index}.jpg", 800, 600), DateTime.UnixEpoch);
+                AscentFactory.PhotoUpload(index), DateTime.UnixEpoch);
         }
 
         _ascentRepository.GetByIdAsync(ascent.Id, Arg.Any<CancellationToken>()).Returns(ascent);

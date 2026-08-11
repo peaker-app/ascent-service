@@ -10,7 +10,6 @@ public sealed class AscentPhoto
     {
         Id = id;
         CloudinaryPublicId = upload.CloudinaryPublicId;
-        SecureUrl = upload.SecureUrl;
         Width = upload.Width;
         Height = upload.Height;
         Position = position;
@@ -20,8 +19,6 @@ public sealed class AscentPhoto
     public Guid Id { get; private set; }
 
     public string CloudinaryPublicId { get; private set; } = null!;
-
-    public string SecureUrl { get; private set; } = null!;
 
     public int Width { get; private set; }
 

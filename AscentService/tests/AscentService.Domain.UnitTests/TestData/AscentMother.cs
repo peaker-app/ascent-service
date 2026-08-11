@@ -37,5 +37,5 @@ internal static class AscentMother
     }
 
     public static PhotoUpload Upload(int index = 0) =>
-        new($"peaker/dev/ascents/photo-{index}", $"https://res.cloudinary.com/photo-{index}.webp", 1024, 768);
+        new($"peaker/dev/ascents/photo-{index}", 1024, 768);
 }

@@ -139,6 +139,92 @@ public sealed class RegisterAscentCommandHandlerTests
         result.Error.Should().Be(AscentErrors.DateTooOld);
     }
 
+    [Fact]
+    public async Task Handle_WithAClientAscentId_StampsItOnTheAscent()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+        Guid clientAscentId = Guid.CreateVersion7();
+
+        await _handler.Handle(
+            AscentFactory.RegisterCommand(clientAscentId: clientAscentId), CancellationToken.None);
+
+        _ascentRepository.Received(1)
+            .Add(Arg.Is<Ascent>(ascent => ascent!.ClientAscentId == clientAscentId));
+    }
+
+    [Fact]
+    public async Task Handle_WithAClientAscentIdAlreadyRegistered_ReturnsTheExistingId()
+    {
+        Guid clientAscentId = Guid.CreateVersion7();
+        Ascent existing = GivenTheKeyWasAlreadyUsed(clientAscentId);
+
+        Result<Guid> result = await _handler.Handle(
+            AscentFactory.RegisterCommand(clientAscentId: clientAscentId), CancellationToken.None);
+
+        result.Value.Should().Be(existing.Id);
+    }
+
+    [Fact]
+    public async Task Handle_WithAClientAscentIdAlreadyRegistered_DoesNotRegisterAnotherAscent()
+    {
+        Guid clientAscentId = Guid.CreateVersion7();
+        GivenTheKeyWasAlreadyUsed(clientAscentId);
+
+        await _handler.Handle(
+            AscentFactory.RegisterCommand(clientAscentId: clientAscentId), CancellationToken.None);
+
+        _ascentRepository.DidNotReceive().Add(Arg.Any<Ascent>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithAClientAscentIdAlreadyRegistered_DoesNotAskTheCatalogAgain()
+    {
+        Guid clientAscentId = Guid.CreateVersion7();
+        GivenTheKeyWasAlreadyUsed(clientAscentId);
+
+        await _handler.Handle(
+            AscentFactory.RegisterCommand(clientAscentId: clientAscentId), CancellationToken.None);
+
+        await _peakCatalog.DidNotReceive()
+            .GetSnapshotAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithoutAClientAscentId_NeverLooksForADuplicate()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+
+        await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        await _ascentRepository.DidNotReceive().GetByClientAscentIdAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithAnEmptyClientAscentId_RegistersWithoutDeduplicating()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+
+        await _handler.Handle(
+            AscentFactory.RegisterCommand(clientAscentId: Guid.Empty), CancellationToken.None);
+
+        await _ascentRepository.DidNotReceive().GetByClientAscentIdAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _ascentRepository.Received(1).Add(Arg.Is<Ascent>(ascent => ascent!.ClientAscentId == null));
+    }
+
+    private Ascent GivenTheKeyWasAlreadyUsed(Guid clientAscentId)
+    {
+        Ascent existing = AscentFactory.Registered(clientAscentId: clientAscentId);
+
+        _ascentRepository
+            .GetByClientAscentIdAsync(AscentFactory.OwnerId, clientAscentId, Arg.Any<CancellationToken>())
+            .Returns(existing);
+
+        return existing;
+    }
+
     private void GivenTheCatalogResolves(PeakSnapshot peak) =>
         _peakCatalog.GetSnapshotAsync(peak.PeakId, Arg.Any<CancellationToken>())
             .Returns(Result.Success(peak));

@@ -8,13 +8,13 @@ namespace AscentService.Infrastructure.Persistence.Repositories;
 
 internal sealed class AscentReader(AscentDbContext context) : IAscentReader
 {
-    public Task<PagedResult<AscentSummaryResponse>> ListByUserAsync(
+    public Task<PagedResult<AscentSummaryRow>> ListByUserAsync(
         Guid userId,
         PageRequest page,
         CancellationToken cancellationToken) =>
         PaginateAsync(context.Ascents.Where(ascent => ascent.UserId == userId), page, cancellationToken);
 
-    public Task<PagedResult<AscentSummaryResponse>> ListPublicByUserAsync(
+    public Task<PagedResult<AscentSummaryRow>> ListPublicByUserAsync(
         Guid userId,
         PageRequest page,
         CancellationToken cancellationToken) =>
@@ -24,7 +24,7 @@ internal sealed class AscentReader(AscentDbContext context) : IAscentReader
             page,
             cancellationToken);
 
-    private static async Task<PagedResult<AscentSummaryResponse>> PaginateAsync(
+    private static async Task<PagedResult<AscentSummaryRow>> PaginateAsync(
         IQueryable<Ascent> source,
         PageRequest page,
         CancellationToken cancellationToken)
@@ -35,19 +35,22 @@ internal sealed class AscentReader(AscentDbContext context) : IAscentReader
 
         int totalCount = await source.CountAsync(cancellationToken);
 
-        List<AscentSummaryResponse> items = await ordered
+        List<AscentSummaryRow> items = await ordered
             .Skip(page.Skip)
             .Take(page.Size)
-            .Select(ascent => new AscentSummaryResponse(
+            .Select(ascent => new AscentSummaryRow(
                 ascent.Id,
                 ascent.Peak.PeakId,
                 ascent.Peak.Name,
                 ascent.Peak.AltitudeMeters,
                 ascent.AscentDate,
-                ascent.Visibility.ToString(),
-                ascent.Photos.OrderBy(photo => photo.Position).Select(photo => photo.SecureUrl).FirstOrDefault()))
+                ascent.Visibility,
+                ascent.Photos
+                    .OrderBy(photo => photo.Position)
+                    .Select(photo => photo.CloudinaryPublicId)
+                    .FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
-        return new PagedResult<AscentSummaryResponse>(items, page.Page, page.Size, totalCount);
+        return new PagedResult<AscentSummaryRow>(items, page.Page, page.Size, totalCount);
     }
 }

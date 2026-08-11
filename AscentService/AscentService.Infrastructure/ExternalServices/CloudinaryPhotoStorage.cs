@@ -4,28 +4,15 @@ using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Common.Domain.Results;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace AscentService.Infrastructure.ExternalServices;
 
-internal sealed class CloudinaryPhotoStorage : IPhotoStorage
+internal sealed class CloudinaryPhotoStorage(
+    CloudinaryFactory cloudinaryFactory,
+    ILogger<CloudinaryPhotoStorage> logger) : IPhotoStorage
 {
     private const string DeletedOutcome = "ok";
-
-    // Motivo: el outbox reentrega la compensación hasta confirmarla; una foto ya borrada no es un fallo.
     private const string MissingOutcome = "not found";
-
-    private readonly Cloudinary _cloudinary;
-    private readonly CloudinaryOptions _options;
-    private readonly ILogger<CloudinaryPhotoStorage> _logger;
-
-    public CloudinaryPhotoStorage(IOptions<CloudinaryOptions> options, ILogger<CloudinaryPhotoStorage> logger)
-    {
-        _options = options.Value;
-        _logger = logger;
-        _cloudinary = new Cloudinary(new Account(_options.CloudName, _options.ApiKey, _options.ApiSecret));
-        _cloudinary.Api.Secure = true;
-    }
 
     public async Task<Result<StoredPhoto>> UploadAsync(PhotoFile file, CancellationToken cancellationToken)
     {
@@ -34,34 +21,68 @@ internal sealed class CloudinaryPhotoStorage : IPhotoStorage
         ImageUploadParams uploadParameters = new()
         {
             File = new FileDescription(file.FileName, stream),
-            Folder = _options.Folder,
+            Folder = cloudinaryFactory.Options.Folder,
+            Type = PhotoDelivery.AuthenticatedType,
+            Tags = PhotoDelivery.QuarantineTag,
+            Format = PhotoDelivery.StoredFormat,
+            Transformation = PhotoDelivery.Sanitizing(),
             Overwrite = false
         };
 
-        ImageUploadResult result = await _cloudinary.UploadAsync(uploadParameters, cancellationToken);
+        ImageUploadResult result = await cloudinaryFactory.Client.UploadAsync(uploadParameters, cancellationToken);
 
         if (result.Error is not null)
         {
-            _logger.LogWarning("Cloudinary photo upload failed: {ErrorMessage}", result.Error.Message);
+            logger.LogWarning("Cloudinary photo upload failed: {ErrorMessage}", result.Error.Message);
             return Result.Failure<StoredPhoto>(AscentErrors.PhotoUploadFailed);
         }
 
-        return new StoredPhoto(result.PublicId, result.SecureUrl.ToString(), result.Width, result.Height);
+        return new StoredPhoto(result.PublicId, result.Width, result.Height);
+    }
+
+    public async Task ConfirmAsync(string publicId, CancellationToken cancellationToken)
+    {
+        TagParams tagParameters = new()
+        {
+            Command = TagCommand.Remove,
+            Tag = PhotoDelivery.QuarantineTag,
+            Type = PhotoDelivery.AuthenticatedType,
+            PublicIds = [publicId]
+        };
+
+        TagResult result = await cloudinaryFactory.Client.TagAsync(tagParameters, cancellationToken);
+
+        if (result.Error is null)
+        {
+            return;
+        }
+
+        logger.LogWarning(
+            "Cloudinary photo {PublicId} could not leave quarantine: {ErrorMessage}",
+            publicId,
+            result.Error.Message);
+
+        throw new PhotoStorageException($"Cloudinary did not confirm the storage of '{publicId}'.");
     }
 
     public async Task DeleteAsync(string publicId, CancellationToken cancellationToken)
     {
-        // Motivo: DestroyAsync de CloudinaryDotNet 1.27.7 no admite CancellationToken.
         cancellationToken.ThrowIfCancellationRequested();
 
-        DeletionResult result = await _cloudinary.DestroyAsync(new DeletionParams(publicId));
+        DeletionParams deletionParameters = new(publicId)
+        {
+            Type = PhotoDelivery.AuthenticatedType,
+            Invalidate = true
+        };
+
+        DeletionResult result = await cloudinaryFactory.Client.DestroyAsync(deletionParameters);
 
         if (IsConfirmed(result))
         {
             return;
         }
 
-        _logger.LogWarning(
+        logger.LogWarning(
             "Cloudinary photo deletion was not confirmed for {PublicId}: {Outcome}",
             publicId,
             result.Error?.Message ?? result.Result);
@@ -77,9 +98,7 @@ internal sealed class CloudinaryPhotoStorage : IPhotoStorage
         }
         catch (PhotoStorageException exception)
         {
-            // Motivo: compensar una subida que no llegó a persistirse es best-effort. Si Cloudinary
-            // no confirma el borrado no puede convertirse el error del caso de uso en un 500.
-            _logger.LogError(exception, "Orphaned Cloudinary photo {PublicId} could not be removed", publicId);
+            logger.LogError(exception, "Orphaned Cloudinary photo {PublicId} could not be removed", publicId);
         }
     }
 

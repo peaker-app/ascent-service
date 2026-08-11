@@ -32,6 +32,10 @@ namespace AscentService.Infrastructure.Migrations
                         .HasColumnType("date")
                         .HasColumnName("ascent_date");
 
+                    b.Property<Guid?>("ClientAscentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_ascent_id");
+
                     b.Property<string>("Companions")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -66,6 +70,11 @@ namespace AscentService.Infrastructure.Migrations
                     b.HasIndex("UserId", "AscentDate")
                         .IsDescending(false, true)
                         .HasDatabaseName("ix_ascents_user_date");
+
+                    b.HasIndex("UserId", "ClientAscentId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ascents_user_client_id")
+                        .HasFilter("client_ascent_id IS NOT NULL");
 
                     b.ToTable("ascents", (string)null);
                 });
@@ -218,12 +227,6 @@ namespace AscentService.Infrastructure.Migrations
                             b1.Property<short>("Position")
                                 .HasColumnType("smallint")
                                 .HasColumnName("position");
-
-                            b1.Property<string>("SecureUrl")
-                                .IsRequired()
-                                .HasMaxLength(500)
-                                .HasColumnType("character varying(500)")
-                                .HasColumnName("secure_url");
 
                             b1.Property<DateTime>("UploadedAtUtc")
                                 .HasColumnType("timestamp with time zone")

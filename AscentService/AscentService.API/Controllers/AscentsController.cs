@@ -2,6 +2,7 @@ using AscentService.API.Requests;
 using AscentService.Application.Abstractions;
 using AscentService.Application.Ascents.AddAscentPhoto;
 using AscentService.Application.Ascents.DeleteAscent;
+using AscentService.Application.Ascents.ExportMyData;
 using AscentService.Application.Ascents.GetAscentById;
 using AscentService.Application.Ascents.ListMyAscents;
 using AscentService.Application.Ascents.RemoveAscentPhoto;
@@ -50,6 +51,18 @@ public sealed class AscentsController(ISender sender, IUserContext userContext) 
             await sender.Send(request.ToQuery(userContext.UserId), cancellationToken);
 
         return result.ToActionResult(paged => Ok(paged.ToPagedResponse()));
+    }
+
+    [HttpGet("me/export")]
+    [Authorize]
+    [ProducesResponseType(typeof(AscentExportResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ExportMine(CancellationToken cancellationToken)
+    {
+        Result<AscentExportResponse> result = await sender.Send(
+            new ExportMyAscentsQuery(userContext.UserId), cancellationToken);
+
+        return result.ToActionResult();
     }
 
     [HttpGet("{id:guid}")]

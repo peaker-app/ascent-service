@@ -27,6 +27,7 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
     private static void ConfigureColumns(EntityTypeBuilder<Ascent> builder)
     {
         builder.Property(ascent => ascent.UserId).HasColumnName("user_id").IsRequired();
+        builder.Property(ascent => ascent.ClientAscentId).HasColumnName("client_ascent_id");
         builder.Property(ascent => ascent.AscentDate).HasColumnName("ascent_date").IsRequired();
 
         builder.Property(ascent => ascent.Companions)
@@ -47,6 +48,11 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
         builder.HasIndex(ascent => new { ascent.UserId, ascent.AscentDate })
             .IsDescending(false, true)
             .HasDatabaseName("ix_ascents_user_date");
+
+        builder.HasIndex(ascent => new { ascent.UserId, ascent.ClientAscentId })
+            .IsUnique()
+            .HasFilter("client_ascent_id IS NOT NULL")
+            .HasDatabaseName("ux_ascents_user_client_id");
     }
 
     private static void ConfigurePeakSnapshot(EntityTypeBuilder<Ascent> builder)
@@ -83,8 +89,6 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
             photo.Property<Guid>(AscentIdColumn).HasColumnName(AscentIdColumn);
             photo.Property(entity => entity.CloudinaryPublicId)
                 .HasColumnName("cloudinary_public_id").HasMaxLength(PhotoUpload.MaxPublicIdLength).IsRequired();
-            photo.Property(entity => entity.SecureUrl)
-                .HasColumnName("secure_url").HasMaxLength(PhotoUpload.MaxSecureUrlLength).IsRequired();
             photo.Property(entity => entity.Width).HasColumnName("width").IsRequired();
             photo.Property(entity => entity.Height).HasColumnName("height").IsRequired();
             photo.Property(entity => entity.Position).HasColumnName("position").IsRequired();

@@ -22,10 +22,13 @@ public sealed class Ascent : AggregateRoot
     {
         UserId = draft.UserId;
         Peak = draft.Peak;
+        ClientAscentId = draft.ClientAscentId;
         Apply(draft.Details);
     }
 
     public Guid UserId { get; private set; }
+
+    public Guid? ClientAscentId { get; private set; }
 
     public PeakSnapshot Peak { get; private set; } = null!;
 
@@ -90,6 +93,7 @@ public sealed class Ascent : AggregateRoot
 
         AscentPhoto photo = AscentPhoto.Create(upload, (short)_photos.Count, uploadedAtUtc);
         _photos.Add(photo);
+        Raise(new AscentPhotoStoredDomainEvent(Id, photo.CloudinaryPublicId));
 
         return photo;
     }

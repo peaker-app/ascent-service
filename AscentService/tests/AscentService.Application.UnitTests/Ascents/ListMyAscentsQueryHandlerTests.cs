@@ -18,9 +18,9 @@ public sealed class ListMyAscentsQueryHandlerTests
     public ListMyAscentsQueryHandlerTests()
     {
         _ascentReader.ListByUserAsync(Arg.Any<Guid>(), Arg.Any<PageRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new PagedResult<AscentSummaryResponse>([], 1, 20, 0));
+            .Returns(new PagedResult<AscentSummaryRow>([], 1, 20, 0));
 
-        _handler = new ListMyAscentsQueryHandler(_ascentReader);
+        _handler = new ListMyAscentsQueryHandler(_ascentReader, AscentFactory.PhotoUrlSigner());
     }
 
     [Fact]

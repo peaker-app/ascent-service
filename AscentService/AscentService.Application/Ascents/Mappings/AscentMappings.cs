@@ -1,11 +1,36 @@
+using AscentService.Application.Abstractions;
 using AscentService.Application.Ascents.GetAscentById;
+using AscentService.Application.Ascents.ListMyAscents;
 using AscentService.Domain.Ascents;
+using Common.Application.Pagination;
 
 namespace AscentService.Application.Ascents.Mappings;
 
 internal static class AscentMappings
 {
-    public static AscentResponse ToResponse(this Ascent ascent) => new(
+    public static PagedResult<AscentSummaryResponse> ToResponse(
+        this PagedResult<AscentSummaryRow> page,
+        IPhotoUrlSigner signer) => new(
+        [.. page.Items.Select(row => row.ToResponse(signer))],
+        page.Page,
+        page.Size,
+        page.TotalCount);
+
+    public static AscentSummaryResponse ToResponse(this AscentSummaryRow row, IPhotoUrlSigner signer) => new(
+        row.Id,
+        row.PeakId,
+        row.PeakName,
+        row.PeakAltitudeMeters,
+        row.AscentDate,
+        row.Visibility.ToString(),
+        SignThumbnail(row, signer));
+
+    private static string? SignThumbnail(AscentSummaryRow row, IPhotoUrlSigner signer) =>
+        row.ThumbnailPublicId is null
+            ? null
+            : signer.Sign(row.ThumbnailPublicId, PhotoDeliveryLifetime.For(row.Visibility));
+
+    public static AscentResponse ToResponse(this Ascent ascent, IPhotoUrlSigner signer) => new(
         ascent.Id,
         ascent.UserId,
         ascent.Peak.PeakId,
@@ -16,11 +41,14 @@ internal static class AscentMappings
         ascent.RouteNotes,
         ascent.Conditions.ToResponse(),
         ascent.Visibility.ToString(),
-        [.. ascent.Photos.Select(photo => photo.ToResponse())]);
+        [.. ascent.Photos.Select(photo => photo.ToResponse(signer, ascent.Visibility))]);
 
-    public static AscentPhotoResponse ToResponse(this AscentPhoto photo) => new(
+    public static AscentPhotoResponse ToResponse(
+        this AscentPhoto photo,
+        IPhotoUrlSigner signer,
+        AscentVisibility visibility) => new(
         photo.Id,
-        photo.SecureUrl,
+        signer.Sign(photo.CloudinaryPublicId, PhotoDeliveryLifetime.For(visibility)),
         photo.Width,
         photo.Height,
         photo.Position,

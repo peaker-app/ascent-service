@@ -12,7 +12,8 @@ public sealed record RegisterAscentRequest(
     SnowCondition? Snow,
     WindCondition? Wind,
     TrailCondition? Trail,
-    AscentVisibility? Visibility)
+    AscentVisibility? Visibility,
+    Guid? ClientAscentId = null)
 {
     public RegisterAscentCommand ToCommand(Guid userId) => new(
         userId,
@@ -21,5 +22,8 @@ public sealed record RegisterAscentRequest(
         Companions,
         RouteNotes,
         new AscentConditions(Snow, Wind, Trail),
-        Visibility ?? AscentVisibility.Public);
+        Visibility ?? AscentVisibility.Public)
+    {
+        ClientAscentId = ClientAscentId,
+    };
 }

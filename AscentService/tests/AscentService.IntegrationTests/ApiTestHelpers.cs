@@ -33,15 +33,23 @@ internal static class ApiTestHelpers
         return (await response.Content.ReadFromJsonAsync<AscentPhotoResponse>())!;
     }
 
+    public static Task<HttpResponseMessage> UploadPhotoAsync(
+        this HttpClient client,
+        Guid ascentId,
+        byte[] content) =>
+        client.UploadPhotoAsync(ascentId, content, "image/jpeg", "cumbre.jpg");
+
     public static async Task<HttpResponseMessage> UploadPhotoAsync(
         this HttpClient client,
         Guid ascentId,
-        byte[] content)
+        byte[] content,
+        string contentType,
+        string fileName)
     {
         using MultipartFormDataContent form = [];
         ByteArrayContent fileContent = new(content);
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-        form.Add(fileContent, "file", "cumbre.jpg");
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        form.Add(fileContent, "file", fileName);
 
         return await client.PostAsync($"{AscentRoute(ascentId)}/photos", form);
     }
