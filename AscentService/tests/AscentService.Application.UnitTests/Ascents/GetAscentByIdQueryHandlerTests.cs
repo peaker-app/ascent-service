@@ -101,7 +101,7 @@ public sealed class GetAscentByIdQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenTheProfileDirectoryIsDown_ReturnsProfileDirectoryUnavailable()
+    public async Task Handle_WhenTheProfileDirectoryIsDown_HidesTheAscent()
     {
         Ascent ascent = GivenAnExistingAscent();
         _profileDirectory.IsProfilePublicAsync(AscentFactory.OwnerId, Arg.Any<CancellationToken>())
@@ -110,7 +110,7 @@ public sealed class GetAscentByIdQueryHandlerTests
         Result<AscentResponse> result = await _handler.Handle(
             new GetAscentByIdQuery(ascent.Id, null), CancellationToken.None);
 
-        result.Error.Type.Should().Be(ErrorType.Unavailable);
+        result.Error.Type.Should().Be(ErrorType.NotFound);
     }
 
     private Ascent GivenAnExistingAscent(AscentVisibility visibility = AscentVisibility.Public)

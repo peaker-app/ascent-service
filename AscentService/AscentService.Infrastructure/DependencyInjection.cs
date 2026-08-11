@@ -2,6 +2,7 @@ using AscentService.Application.Abstractions;
 using AscentService.Domain.Ascents;
 using AscentService.Domain.Ascents.Events;
 using AscentService.Domain.ConfirmedUsers;
+using AscentService.Domain.DeletedUsers;
 using AscentService.Infrastructure.ExternalServices;
 using AscentService.Infrastructure.Maintenance;
 using AscentService.Infrastructure.Messaging;
@@ -34,6 +35,7 @@ public static class DependencyInjection
         {
             bus.AddConsumer<PeakRenamedConsumer>();
             bus.AddConsumer<PeakUpdatedConsumer>().Endpoint(endpoint => endpoint.Temporary = true);
+            bus.AddConsumer<ProfileUpdatedConsumer>().Endpoint(endpoint => endpoint.Temporary = true);
             bus.AddConsumer<UserDeletedConsumer>();
             bus.AddConsumer<UserEmailConfirmedConsumer>();
         });
@@ -45,8 +47,10 @@ public static class DependencyInjection
     private static void AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+        services.AddSingleton<AscentPhotoConcurrencyInterceptor>();
         services.AddSingleton<AuditableEntityInterceptor>();
         services.AddSingleton<OutboxInterceptor>();
+        services.AddSingleton<ConcurrencyConflictInterceptor>();
         services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
 
         services.AddAscentDbContext();
@@ -55,15 +59,23 @@ public static class DependencyInjection
         services.AddScoped<IAscentReader, AscentReader>();
         services.AddScoped<IConfirmedUserRepository, ConfirmedUserRepository>();
         services.AddScoped<IConfirmedUserDirectory, ConfirmedUserDirectory>();
+        services.AddScoped<IDeletedUserRepository, DeletedUserRepository>();
+        services.AddScoped<IDeletedUserDirectory, DeletedUserDirectory>();
         services.AddHostedService<OutboxProcessor<AscentDbContext>>();
+
+        services.Configure<DeletedUserSweepOptions>(
+            configuration.GetSection(DeletedUserSweepOptions.SectionName));
+        services.AddHostedService<DeletedUserSweeper>();
     }
 
     private static void AddAscentDbContext(this IServiceCollection services) =>
         services.AddDbContext<AscentDbContext>((provider, options) => options
             .UseNpgsql(ResolveConnectionString(provider))
             .AddInterceptors(
+                provider.GetRequiredService<AscentPhotoConcurrencyInterceptor>(),
                 provider.GetRequiredService<AuditableEntityInterceptor>(),
-                provider.GetRequiredService<OutboxInterceptor>()));
+                provider.GetRequiredService<OutboxInterceptor>(),
+                provider.GetRequiredService<ConcurrencyConflictInterceptor>()));
 
     private static string ResolveConnectionString(IServiceProvider provider)
     {
@@ -112,8 +124,12 @@ public static class DependencyInjection
             provider.GetRequiredService<PeakCatalogHttpClient>(),
             provider.GetRequiredService<IMemoryCache>()));
 
-        services.AddHttpClient<IProfileDirectory, AccountProfileHttpClient>(ConfigureProfileDirectory)
+        services.AddHttpClient<AccountProfileHttpClient>(ConfigureProfileDirectory)
             .AddStandardResilienceHandler();
+
+        services.AddScoped<IProfileDirectory>(provider => new CachingProfileDirectory(
+            provider.GetRequiredService<AccountProfileHttpClient>(),
+            provider.GetRequiredService<IMemoryCache>()));
     }
 
     private static void ConfigurePeakCatalog(IServiceProvider provider, HttpClient client)

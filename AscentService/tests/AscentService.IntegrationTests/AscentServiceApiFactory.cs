@@ -1,12 +1,16 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using AscentService.Application.Abstractions;
+using AscentService.Application.Ascents.SweepDeletedUsers;
 using AscentService.Application.Ascents.SweepOrphanedPhotos;
+using AscentService.Domain.Ascents;
 using AscentService.Domain.ConfirmedUsers;
 using AscentService.Infrastructure.ExternalServices;
 using AscentService.Infrastructure.Persistence;
 using AscentService.IntegrationTests.Fakes;
+using Common.Application.Abstractions;
 using Common.Contracts.Peaks;
+using Common.Contracts.Profiles;
 using Common.Contracts.Users;
 using Common.Domain.Results;
 using MassTransit;
@@ -54,6 +58,15 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
         HttpClient client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", _tokenSigning.CreateAccessToken(userId));
+
+        return client;
+    }
+
+    public HttpClient CreateAdminClient(Guid userId)
+    {
+        HttpClient client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", _tokenSigning.CreateAccessToken(userId, [PeakerRoles.Admin]));
 
         return client;
     }
@@ -126,6 +139,14 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
         await publishEndpoint.Publish(message);
     }
 
+    public async Task PublishProfileUpdatedAsync(ProfileUpdated message)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        IPublishEndpoint publishEndpoint = scope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
+
+        await publishEndpoint.Publish(message);
+    }
+
     public async Task PublishUserDeletedAsync(UserDeleted message)
     {
         await using AsyncServiceScope scope = Services.CreateAsyncScope();
@@ -144,6 +165,59 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
             .Where(ascent => ascent.Id == ascentId)
             .SelectMany(ascent => ascent.Photos.Select(photo => photo.CloudinaryPublicId))
             .ToListAsync();
+    }
+
+    public async Task<Guid> InsertAscentDirectlyAsync(Guid userId)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        AscentDbContext context = scope.ServiceProvider.GetRequiredService<AscentDbContext>();
+
+        PeakSnapshot peak = PeakCatalog.Register("Aneto", 3404);
+        AscentDraft draft = new(
+            userId,
+            peak,
+            new AscentDetails(new DateOnly(2026, 7, 1), null, null, AscentConditions.Unreported,
+                AscentVisibility.Public),
+            null);
+
+        Ascent ascent = Ascent.Create(draft, new DateOnly(2026, 12, 31)).Value;
+        context.Ascents.Add(ascent);
+        await context.SaveChangesAsync();
+
+        return ascent.Id;
+    }
+
+    internal async Task<DeletedUserSweepResponse> SweepDeletedUsersAsync()
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        ISender sender = scope.ServiceProvider.GetRequiredService<ISender>();
+
+        Result<DeletedUserSweepResponse> result = await sender.Send(new SweepDeletedUsersCommand(100));
+
+        return result.Value;
+    }
+
+    public async Task<bool> WaitForUserTombstoneAsync(Guid userId)
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            if (await IsUserTombstonedAsync(userId))
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500));
+        }
+
+        return false;
+    }
+
+    public async Task<bool> IsUserTombstonedAsync(Guid userId)
+    {
+        await using AsyncServiceScope scope = Services.CreateAsyncScope();
+        AscentDbContext context = scope.ServiceProvider.GetRequiredService<AscentDbContext>();
+
+        return await context.DeletedUsers.AsNoTracking().AnyAsync(deleted => deleted.Id == userId);
     }
 
     internal async Task<PhotoSweepResponse> SweepOrphanedPhotosAsync(DateTime uploadedBeforeUtc)
@@ -221,7 +295,8 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
                 PeakCatalog, provider.GetRequiredService<IMemoryCache>()));
 
             services.RemoveAll<IProfileDirectory>();
-            services.AddSingleton<IProfileDirectory>(ProfileDirectory);
+            services.AddScoped<IProfileDirectory>(provider => new CachingProfileDirectory(
+                ProfileDirectory, provider.GetRequiredService<IMemoryCache>()));
 
             services.RemoveAll<IPhotoStorage>();
             services.AddSingleton<IPhotoStorage>(PhotoStorage);
@@ -275,7 +350,8 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
             ["Cloudinary:ApiKey"] = "test",
             ["Cloudinary:ApiSecret"] = "test",
             ["Cloudinary:AuthTokenKey"] = TestAuthTokenKey,
-            ["PhotoSweep:Enabled"] = "false"
+            ["PhotoSweep:Enabled"] = "false",
+            ["DeletedUserSweep:Enabled"] = "false"
         };
     }
 

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Common.Application.Abstractions;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
@@ -15,9 +16,17 @@ internal sealed class TestTokenSigning : IDisposable
 
     public SecurityKey PublicKey => new RsaSecurityKey(_rsa.ExportParameters(includePrivateParameters: false));
 
-    public string CreateAccessToken(Guid userId)
+    public string CreateAccessToken(Guid userId) => CreateAccessToken(userId, roles: []);
+
+    public string CreateAccessToken(Guid userId, IReadOnlyCollection<string> roles)
     {
         DateTime now = DateTime.UtcNow;
+        Dictionary<string, object> claims = new() { ["sub"] = userId.ToString() };
+
+        if (roles.Count > 0)
+        {
+            claims[PeakerRoles.ClaimType] = roles.ToArray();
+        }
 
         SecurityTokenDescriptor descriptor = new()
         {
@@ -26,7 +35,7 @@ internal sealed class TestTokenSigning : IDisposable
             IssuedAt = now,
             NotBefore = now,
             Expires = now.AddMinutes(15),
-            Claims = new Dictionary<string, object> { ["sub"] = userId.ToString() },
+            Claims = claims,
             SigningCredentials = new SigningCredentials(new RsaSecurityKey(_rsa), SecurityAlgorithms.RsaSha256)
         };
 

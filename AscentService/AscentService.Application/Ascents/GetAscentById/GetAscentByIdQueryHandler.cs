@@ -38,12 +38,7 @@ internal sealed class GetAscentByIdQueryHandler(
     {
         Result<bool> profileIsPublic = await profileDirectory.IsProfilePublicAsync(ascent.UserId, cancellationToken);
 
-        if (profileIsPublic.IsFailure)
-        {
-            return Result.Failure(profileIsPublic.Error);
-        }
-
-        return profileIsPublic.Value
+        return profileIsPublic.IsSuccess && profileIsPublic.Value
             ? Result.Success()
             : Result.Failure(AscentErrors.NotFound(ascent.Id));
     }

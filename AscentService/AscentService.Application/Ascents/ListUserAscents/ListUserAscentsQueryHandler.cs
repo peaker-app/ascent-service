@@ -43,12 +43,7 @@ internal sealed class ListUserAscentsQueryHandler(
         Result<bool> profileIsPublic =
             await profileDirectory.IsProfilePublicAsync(query.TargetUserId, cancellationToken);
 
-        if (profileIsPublic.IsFailure)
-        {
-            return Result.Failure(profileIsPublic.Error);
-        }
-
-        return profileIsPublic.Value
+        return profileIsPublic.IsSuccess && profileIsPublic.Value
             ? Result.Success()
             : Result.Failure(AscentErrors.ProfileNotVisible(query.TargetUserId));
     }

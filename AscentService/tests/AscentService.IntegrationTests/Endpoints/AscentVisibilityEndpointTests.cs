@@ -155,7 +155,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
     }
 
     [Fact]
-    public async Task ListByUser_WhenTheProfileDirectoryIsDown_Returns503()
+    public async Task ListByUser_WhenTheProfileDirectoryIsDown_Returns404()
     {
         Guid ownerId = ApiTestHelpers.NewUserId();
         using HttpClient visitor = factory.CreateClient();
@@ -166,7 +166,7 @@ public sealed class AscentVisibilityEndpointTests(AscentServiceApiFactory factor
         {
             HttpResponseMessage response = await visitor.GetAsync(ApiTestHelpers.ByUserRoute(ownerId));
 
-            response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
         finally
         {

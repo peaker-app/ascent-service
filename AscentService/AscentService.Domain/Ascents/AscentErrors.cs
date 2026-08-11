@@ -33,12 +33,13 @@ public static class AscentErrors
     public static readonly Error PhotoUploadFailed =
         Error.Failure("Ascent.PhotoUploadFailed", "No se pudo almacenar la imagen.");
 
-    public static readonly Error NotOwned =
-        Error.Forbidden("Ascent.NotOwned", "La ascensión pertenece a otro usuario.");
-
     public static readonly Error EmailNotConfirmed = Error.Forbidden(
         "Ascent.EmailNotConfirmed",
         "Confirma tu dirección de correo antes de registrar ascensiones.");
+
+    public static readonly Error AccountDeleted = Error.Forbidden(
+        "Ascent.AccountDeleted",
+        "La cuenta está dada de baja y no puede registrar ascensiones.");
 
     public static readonly Error PeakCatalogUnavailable = Error.Unavailable(
         "Ascent.PeakCatalogUnavailable",

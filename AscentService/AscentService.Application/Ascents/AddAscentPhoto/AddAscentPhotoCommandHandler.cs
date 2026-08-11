@@ -41,14 +41,9 @@ internal sealed class AddAscentPhotoCommandHandler(
 
     private Result CheckEligibility(Ascent? ascent, AddAscentPhotoCommand command)
     {
-        if (ascent is null)
+        if (ascent is null || !ascent.IsOwnedBy(command.UserId))
         {
             return Result.Failure(AscentErrors.NotFound(command.AscentId));
-        }
-
-        if (!ascent.IsOwnedBy(command.UserId))
-        {
-            return Result.Failure(AscentErrors.NotOwned);
         }
 
         return ascent.HasRoomForPhotos

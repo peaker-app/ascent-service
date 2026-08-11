@@ -10,6 +10,7 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
 {
     private const int VisibilityLength = 20;
     private const string AscentIdColumn = "ascent_id";
+    private const string RowVersionProperty = "RowVersion";
 
     public override void Configure(EntityTypeBuilder<Ascent> builder)
     {
@@ -26,6 +27,12 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
 
     private static void ConfigureColumns(EntityTypeBuilder<Ascent> builder)
     {
+        builder.Property<uint>(RowVersionProperty)
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+
         builder.Property(ascent => ascent.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(ascent => ascent.ClientAscentId).HasColumnName("client_ascent_id");
         builder.Property(ascent => ascent.AscentDate).HasColumnName("ascent_date").IsRequired();
@@ -81,7 +88,10 @@ internal sealed class AscentConfiguration : EntityConfiguration<Ascent>
     {
         builder.OwnsMany(ascent => ascent.Photos, photo =>
         {
-            photo.ToTable("ascent_photos");
+            photo.ToTable("ascent_photos", table => table.HasCheckConstraint(
+                "ck_ascent_photo_position",
+                $"position BETWEEN 0 AND {Ascent.MaxPhotos - 1}"));
+
             photo.WithOwner().HasForeignKey(AscentIdColumn);
             photo.HasKey(entity => entity.Id);
 

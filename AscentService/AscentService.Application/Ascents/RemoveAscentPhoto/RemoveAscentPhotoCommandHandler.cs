@@ -12,14 +12,9 @@ internal sealed class RemoveAscentPhotoCommandHandler(IAscentRepository ascentRe
     {
         Ascent? ascent = await ascentRepository.GetByIdAsync(command.AscentId, cancellationToken);
 
-        if (ascent is null)
+        if (ascent is null || !ascent.IsOwnedBy(command.UserId))
         {
             return Result.Failure(AscentErrors.NotFound(command.AscentId));
-        }
-
-        if (!ascent.IsOwnedBy(command.UserId))
-        {
-            return Result.Failure(AscentErrors.NotOwned);
         }
 
         Result removal = ascent.RemovePhoto(command.PhotoId);

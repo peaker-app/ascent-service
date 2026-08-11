@@ -18,6 +18,9 @@ public sealed class RegisterAscentCommandHandlerTests
     private readonly IConfirmedUserDirectory _confirmedUserDirectory =
         Substitute.For<IConfirmedUserDirectory>();
 
+    private readonly IDeletedUserDirectory _deletedUserDirectory =
+        Substitute.For<IDeletedUserDirectory>();
+
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
 
@@ -27,8 +30,36 @@ public sealed class RegisterAscentCommandHandlerTests
     {
         _dateTimeProvider.Today.Returns(AscentFactory.Today);
         _confirmedUserDirectory.IsConfirmedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
+        _deletedUserDirectory.IsDeletedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
         _handler = new RegisterAscentCommandHandler(
-            _ascentRepository, _peakCatalog, _confirmedUserDirectory, _unitOfWork, _dateTimeProvider);
+            _ascentRepository,
+            _peakCatalog,
+            _confirmedUserDirectory,
+            _deletedUserDirectory,
+            _unitOfWork,
+            _dateTimeProvider);
+    }
+
+    [Fact]
+    public async Task Handle_WithADeletedAccount_ReturnsAccountDeleted()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+        _deletedUserDirectory.IsDeletedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        Result<Guid> result = await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        result.Error.Should().Be(AscentErrors.AccountDeleted);
+    }
+
+    [Fact]
+    public async Task Handle_WithADeletedAccount_DoesNotPersistAnything()
+    {
+        GivenTheCatalogResolves(AscentFactory.Aneto);
+        _deletedUserDirectory.IsDeletedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        await _handler.Handle(AscentFactory.RegisterCommand(), CancellationToken.None);
+
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

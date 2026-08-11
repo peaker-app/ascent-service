@@ -79,7 +79,7 @@ public sealed class AddAscentPhotoCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenAnotherUserAttachesThePhoto_ReturnsNotOwned()
+    public async Task Handle_WhenAnotherUserAttachesThePhoto_ReturnsNotFound()
     {
         Ascent ascent = GivenAnExistingAscent();
 
@@ -87,7 +87,7 @@ public sealed class AddAscentPhotoCommandHandlerTests
             new AddAscentPhotoCommand(ascent.Id, AscentFactory.OtherUserId, AscentFactory.PhotoFile()),
             CancellationToken.None);
 
-        result.Error.Should().Be(AscentErrors.NotOwned);
+        result.Error.Should().Be(AscentErrors.NotFound(ascent.Id));
     }
 
     [Fact]

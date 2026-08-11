@@ -11,7 +11,7 @@ public sealed record UpdateAscentRequest(
     SnowCondition? Snow,
     WindCondition? Wind,
     TrailCondition? Trail,
-    AscentVisibility? Visibility)
+    [property: JsonRequired] AscentVisibility Visibility)
 {
     public UpdateAscentCommand ToCommand(Guid ascentId, Guid userId) => new(
         ascentId,
@@ -20,5 +20,5 @@ public sealed record UpdateAscentRequest(
         Companions,
         RouteNotes,
         new AscentConditions(Snow, Wind, Trail),
-        Visibility ?? AscentVisibility.Public);
+        Visibility);
 }

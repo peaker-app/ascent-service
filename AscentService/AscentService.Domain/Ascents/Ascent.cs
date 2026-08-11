@@ -124,6 +124,15 @@ public sealed class Ascent : AggregateRoot
         Peak = Peak with { Name = name, AltitudeMeters = altitudeMeters };
     }
 
+    public void Republish() => Raise(new AscentRegisteredDomainEvent(
+        Id,
+        UserId,
+        Peak.PeakId,
+        Peak.Name,
+        Peak.AltitudeMeters,
+        AscentDate,
+        Visibility.ToString()));
+
     public void MarkDeleted()
     {
         Raise(new AscentDeletedDomainEvent(Id, UserId, Peak.PeakId, AscentDate));

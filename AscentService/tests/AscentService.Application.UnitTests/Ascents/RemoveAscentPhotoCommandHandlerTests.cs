@@ -58,7 +58,7 @@ public sealed class RemoveAscentPhotoCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenAnotherUserRemovesThePhoto_ReturnsNotOwned()
+    public async Task Handle_WhenAnotherUserRemovesThePhoto_ReturnsNotFound()
     {
         Ascent ascent = GivenAnAscentWithPhotos(1);
         Guid photoId = ascent.Photos.Single().Id;
@@ -66,7 +66,7 @@ public sealed class RemoveAscentPhotoCommandHandlerTests
         Result result = await _handler.Handle(
             new RemoveAscentPhotoCommand(ascent.Id, photoId, AscentFactory.OtherUserId), CancellationToken.None);
 
-        result.Error.Should().Be(AscentErrors.NotOwned);
+        result.Error.Should().Be(AscentErrors.NotFound(ascent.Id));
     }
 
     [Fact]

@@ -55,14 +55,14 @@ public sealed class UpdateAscentCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenAnotherUserEditsTheAscent_ReturnsNotOwned()
+    public async Task Handle_WhenAnotherUserEditsTheAscent_ReturnsNotFound()
     {
         Ascent ascent = GivenAnExistingAscent();
 
         Result result = await _handler.Handle(
             CommandFor(ascent.Id, AscentFactory.OtherUserId), CancellationToken.None);
 
-        result.Error.Should().Be(AscentErrors.NotOwned);
+        result.Error.Should().Be(AscentErrors.NotFound(ascent.Id));
     }
 
     [Fact]

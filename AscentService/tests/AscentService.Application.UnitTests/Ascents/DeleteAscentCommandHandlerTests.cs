@@ -53,14 +53,14 @@ public sealed class DeleteAscentCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenAnotherUserDeletesTheAscent_ReturnsNotOwned()
+    public async Task Handle_WhenAnotherUserDeletesTheAscent_ReturnsNotFound()
     {
         Ascent ascent = GivenAnExistingAscent();
 
         Result result = await _handler.Handle(
             new DeleteAscentCommand(ascent.Id, AscentFactory.OtherUserId), CancellationToken.None);
 
-        result.Error.Should().Be(AscentErrors.NotOwned);
+        result.Error.Should().Be(AscentErrors.NotFound(ascent.Id));
     }
 
     [Fact]

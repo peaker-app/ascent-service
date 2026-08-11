@@ -37,7 +37,19 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     }
 
     [Fact]
-    public async Task Update_WithoutVisibility_ResetsTheAscentToPublic()
+    public async Task Update_WithoutVisibility_Returns400()
+    {
+        using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
+        Guid ascentId = await owner.RegisterAscentAsync(RegisterBody(AscentVisibility.Private));
+
+        HttpResponseMessage response = await owner.PutAsJsonAsync(
+            ApiTestHelpers.AscentRoute(ascentId), new { ascentDate = "2026-07-02" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Update_WithoutVisibility_LeavesThePrivateAscentPrivate()
     {
         using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody(AscentVisibility.Private));
@@ -48,7 +60,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
         AscentResponse? ascent = await owner.GetFromJsonAsync<AscentResponse>(
             ApiTestHelpers.AscentRoute(ascentId));
 
-        ascent!.Visibility.Should().Be(nameof(AscentVisibility.Public));
+        ascent!.Visibility.Should().Be(nameof(AscentVisibility.Private));
     }
 
     [Fact]
@@ -58,13 +70,14 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
 
         HttpResponseMessage response = await owner.PutAsJsonAsync(
-            ApiTestHelpers.AscentRoute(ascentId), new { ascentDate = "2099-01-01" });
+            ApiTestHelpers.AscentRoute(ascentId),
+            new { ascentDate = "2099-01-01", visibility = nameof(AscentVisibility.Public) });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Update_ByAnotherUser_Returns403()
+    public async Task Update_ByAnotherUser_Returns404()
     {
         using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
@@ -73,7 +86,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
         HttpResponseMessage response = await stranger.PutAsJsonAsync(
             ApiTestHelpers.AscentRoute(ascentId), UpdateBody());
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -137,7 +150,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
     }
 
     [Fact]
-    public async Task Delete_ByAnotherUser_Returns403()
+    public async Task Delete_ByAnotherUser_Returns404()
     {
         using HttpClient owner = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         Guid ascentId = await owner.RegisterAscentAsync(RegisterBody());
@@ -145,7 +158,7 @@ public sealed class UpdateAndDeleteAscentEndpointTests(AscentServiceApiFactory f
         using HttpClient stranger = await factory.CreateConfirmedClientAsync(ApiTestHelpers.NewUserId());
         HttpResponseMessage response = await stranger.DeleteAsync(ApiTestHelpers.AscentRoute(ascentId));
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]

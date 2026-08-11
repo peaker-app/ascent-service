@@ -92,7 +92,7 @@ public sealed class ListUserAscentsQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenTheProfileDirectoryIsDown_ReturnsProfileDirectoryUnavailable()
+    public async Task Handle_WhenTheProfileDirectoryIsDown_HidesTheProfile()
     {
         _profileDirectory.IsProfilePublicAsync(AscentFactory.OwnerId, Arg.Any<CancellationToken>())
             .Returns(Result.Failure<bool>(AscentErrors.ProfileDirectoryUnavailable));
@@ -100,7 +100,7 @@ public sealed class ListUserAscentsQueryHandlerTests
         Result<PagedResult<AscentSummaryResponse>> result =
             await _handler.Handle(QueryBy(null), CancellationToken.None);
 
-        result.Error.Type.Should().Be(ErrorType.Unavailable);
+        result.Error.Type.Should().Be(ErrorType.NotFound);
     }
 
     private static ListUserAscentsQuery QueryBy(Guid? requesterId) =>

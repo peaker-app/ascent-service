@@ -10,14 +10,17 @@ internal sealed class RegisterAscentCommandHandler(
     IAscentRepository ascentRepository,
     IPeakCatalog peakCatalog,
     IConfirmedUserDirectory confirmedUserDirectory,
+    IDeletedUserDirectory deletedUserDirectory,
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider) : ICommandHandler<RegisterAscentCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(RegisterAscentCommand command, CancellationToken cancellationToken)
     {
-        if (!await confirmedUserDirectory.IsConfirmedAsync(command.UserId, cancellationToken))
+        Result eligibility = await CheckAccountAsync(command.UserId, cancellationToken);
+
+        if (eligibility.IsFailure)
         {
-            return Result.Failure<Guid>(AscentErrors.EmailNotConfirmed);
+            return Result.Failure<Guid>(eligibility.Error);
         }
 
         Ascent? alreadyRegistered = await FindAlreadyRegisteredAsync(command, cancellationToken);
@@ -25,6 +28,18 @@ internal sealed class RegisterAscentCommandHandler(
         return alreadyRegistered is not null
             ? alreadyRegistered.Id
             : await RegisterNewAsync(command, cancellationToken);
+    }
+
+    private async Task<Result> CheckAccountAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (await deletedUserDirectory.IsDeletedAsync(userId, cancellationToken))
+        {
+            return Result.Failure(AscentErrors.AccountDeleted);
+        }
+
+        return await confirmedUserDirectory.IsConfirmedAsync(userId, cancellationToken)
+            ? Result.Success()
+            : Result.Failure(AscentErrors.EmailNotConfirmed);
     }
 
     private Task<Ascent?> FindAlreadyRegisteredAsync(
