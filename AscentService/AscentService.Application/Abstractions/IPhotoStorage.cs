@@ -14,5 +14,5 @@ public interface IPhotoStorage
 
     Task DeleteAsync(string publicId, CancellationToken cancellationToken);
 
-    Task TryDeleteAsync(string publicId, CancellationToken cancellationToken);
+    Task<bool> TryDeleteAsync(string publicId, CancellationToken cancellationToken);
 }

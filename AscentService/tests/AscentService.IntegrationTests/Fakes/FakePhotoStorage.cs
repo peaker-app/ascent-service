@@ -56,14 +56,16 @@ internal sealed class FakePhotoStorage : IPhotoStorage
         return Task.CompletedTask;
     }
 
-    public Task TryDeleteAsync(string publicId, CancellationToken cancellationToken)
+    public Task<bool> TryDeleteAsync(string publicId, CancellationToken cancellationToken)
     {
-        if (!ShouldFail(publicId))
+        if (ShouldFail(publicId))
         {
-            DeletedPublicIds.Add(publicId);
+            return Task.FromResult(false);
         }
 
-        return Task.CompletedTask;
+        DeletedPublicIds.Add(publicId);
+
+        return Task.FromResult(true);
     }
 
     private bool ShouldFail(string publicId)

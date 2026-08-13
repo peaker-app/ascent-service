@@ -3,16 +3,19 @@ using AscentService.Domain.Ascents;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Common.Domain.Results;
+using Common.Infrastructure.Observability;
 using Microsoft.Extensions.Logging;
 
 namespace AscentService.Infrastructure.ExternalServices;
 
 internal sealed class CloudinaryPhotoStorage(
     CloudinaryFactory cloudinaryFactory,
+    CompensationMetrics compensationMetrics,
     ILogger<CloudinaryPhotoStorage> logger) : IPhotoStorage
 {
     private const string DeletedOutcome = "ok";
     private const string MissingOutcome = "not found";
+    private const string AssetKind = "ascent-photo";
 
     public async Task<Result<StoredPhoto>> UploadAsync(PhotoFile file, CancellationToken cancellationToken)
     {
@@ -90,15 +93,20 @@ internal sealed class CloudinaryPhotoStorage(
         throw new PhotoStorageException($"Cloudinary did not confirm the deletion of '{publicId}'.");
     }
 
-    public async Task TryDeleteAsync(string publicId, CancellationToken cancellationToken)
+    public async Task<bool> TryDeleteAsync(string publicId, CancellationToken cancellationToken)
     {
         try
         {
             await DeleteAsync(publicId, cancellationToken);
+
+            return true;
         }
         catch (PhotoStorageException exception)
         {
             logger.LogError(exception, "Orphaned Cloudinary photo {PublicId} could not be removed", publicId);
+            compensationMetrics.RecordFailure(AssetKind);
+
+            return false;
         }
     }
 
