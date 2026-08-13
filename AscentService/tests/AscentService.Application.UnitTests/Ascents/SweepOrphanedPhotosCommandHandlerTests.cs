@@ -23,6 +23,7 @@ public sealed class SweepOrphanedPhotosCommandHandlerTests
         GivenQuarantined();
         GivenConfirmed();
         GivenKnown();
+        GivenDeletionConfirmed(true);
 
         _handler = new SweepOrphanedPhotosCommandHandler(_inventory, _photoStorage, _ascentRepository);
     }
@@ -72,6 +73,18 @@ public sealed class SweepOrphanedPhotosCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenCloudinaryDoesNotConfirmTheDeletion_DoesNotCountItAsRemoved()
+    {
+        GivenConfirmed(Aged("stray"));
+        GivenDeletionConfirmed(false);
+
+        Result<PhotoSweepResponse> result =
+            await _handler.Handle(new SweepOrphanedPhotosCommand(Cutoff), CancellationToken.None);
+
+        result.Value.UnreferencedRemoved.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Handle_WithNoCandidates_NeverQueriesTheRepository()
     {
         await _handler.Handle(new SweepOrphanedPhotosCommand(Cutoff), CancellationToken.None);
@@ -81,6 +94,9 @@ public sealed class SweepOrphanedPhotosCommandHandlerTests
     }
 
     private static StoredAsset Aged(string publicId) => new(publicId, Cutoff.AddDays(-1));
+
+    private void GivenDeletionConfirmed(bool confirmed) =>
+        _photoStorage.TryDeleteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(confirmed);
 
     private void GivenQuarantined(params StoredAsset[] assets) =>
         _inventory.ListQuarantinedAsync(Arg.Any<CancellationToken>())

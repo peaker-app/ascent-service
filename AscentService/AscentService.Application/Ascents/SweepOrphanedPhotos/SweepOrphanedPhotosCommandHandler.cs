@@ -52,8 +52,10 @@ internal sealed class SweepOrphanedPhotosCommandHandler(
 
         foreach (string publicId in publicIds)
         {
-            await photoStorage.TryDeleteAsync(publicId, cancellationToken);
-            removed++;
+            if (await photoStorage.TryDeleteAsync(publicId, cancellationToken))
+            {
+                removed++;
+            }
         }
 
         return removed;

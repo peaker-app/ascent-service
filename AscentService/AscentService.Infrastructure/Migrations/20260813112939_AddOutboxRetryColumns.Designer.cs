@@ -3,6 +3,7 @@ using System;
 using AscentService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AscentService.Infrastructure.Migrations
 {
     [DbContext(typeof(AscentDbContext))]
-    partial class AscentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813112939_AddOutboxRetryColumns")]
+    partial class AddOutboxRetryColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

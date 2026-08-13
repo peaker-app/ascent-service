@@ -12,6 +12,7 @@ using AscentService.Infrastructure.Persistence.Repositories;
 using Common.Application.Abstractions;
 using Common.Application.Images;
 using Common.Infrastructure.Messaging;
+using Common.Infrastructure.Observability;
 using Common.Infrastructure.Persistence;
 using Common.Infrastructure.Persistence.Outbox;
 using Common.Infrastructure.Time;
@@ -49,9 +50,8 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<AscentPhotoConcurrencyInterceptor>();
         services.AddSingleton<AuditableEntityInterceptor>();
-        services.AddSingleton<OutboxInterceptor>();
         services.AddSingleton<ConcurrencyConflictInterceptor>();
-        services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
+        services.AddCommonOutbox<AscentDbContext>(configuration);
 
         services.AddAscentDbContext();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AscentDbContext>());
@@ -61,7 +61,6 @@ public static class DependencyInjection
         services.AddScoped<IConfirmedUserDirectory, ConfirmedUserDirectory>();
         services.AddScoped<IDeletedUserRepository, DeletedUserRepository>();
         services.AddScoped<IDeletedUserDirectory, DeletedUserDirectory>();
-        services.AddHostedService<OutboxProcessor<AscentDbContext>>();
 
         services.Configure<DeletedUserSweepOptions>(
             configuration.GetSection(DeletedUserSweepOptions.SectionName));
@@ -97,6 +96,7 @@ public static class DependencyInjection
         services.Configure<PhotoSweepOptions>(configuration.GetSection(PhotoSweepOptions.SectionName));
 
         services.AddSingleton<CloudinaryFactory>();
+        services.AddSingleton<CompensationMetrics>();
         services.AddSingleton<IImageValidator, ImageValidator>();
         services.AddSingleton<IPhotoUrlSigner, CloudinaryPhotoUrlSigner>();
         services.AddScoped<IPhotoStorage, CloudinaryPhotoStorage>();

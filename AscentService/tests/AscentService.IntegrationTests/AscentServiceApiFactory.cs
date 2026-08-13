@@ -342,6 +342,8 @@ public sealed class AscentServiceApiFactory : WebApplicationFactory<Program>, IA
             ["Messaging:Password"] = credentials[1],
             ["Messaging:VirtualHost"] = "/",
             ["Outbox:PollingInterval"] = "00:00:01",
+            ["Outbox:RetryBackoffBase"] = "00:00:01",
+            ["Outbox:RetryBackoffCap"] = "00:00:01",
             ["Jwt:Issuer"] = TestTokenSigning.Issuer,
             ["Jwt:Audience"] = TestTokenSigning.Audience,
             ["PeakCatalog:BaseAddress"] = "http://peak-service.test/",
