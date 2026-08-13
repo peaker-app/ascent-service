@@ -8,7 +8,7 @@ namespace AscentService.IntegrationTests;
 internal sealed class TestTokenSigning : IDisposable
 {
     public const string Issuer = "peaker-auth";
-    public const string Audience = "peaker-api";
+    public const string Audience = "peaker-ascent";
 
     private static readonly JsonWebTokenHandler TokenHandler = new() { SetDefaultTimesOnTokenCreation = false };
 
@@ -17,6 +17,24 @@ internal sealed class TestTokenSigning : IDisposable
     public SecurityKey PublicKey => new RsaSecurityKey(_rsa.ExportParameters(includePrivateParameters: false));
 
     public string CreateAccessToken(Guid userId) => CreateAccessToken(userId, roles: []);
+
+    public string CreateAccessTokenForAudience(Guid userId, string audience)
+    {
+        DateTime now = DateTime.UtcNow;
+
+        SecurityTokenDescriptor descriptor = new()
+        {
+            Issuer = Issuer,
+            Audience = audience,
+            IssuedAt = now,
+            NotBefore = now,
+            Expires = now.AddMinutes(15),
+            Claims = new Dictionary<string, object> { ["sub"] = userId.ToString() },
+            SigningCredentials = new SigningCredentials(new RsaSecurityKey(_rsa), SecurityAlgorithms.RsaSha256)
+        };
+
+        return TokenHandler.CreateToken(descriptor);
+    }
 
     public string CreateAccessToken(Guid userId, IReadOnlyCollection<string> roles)
     {
