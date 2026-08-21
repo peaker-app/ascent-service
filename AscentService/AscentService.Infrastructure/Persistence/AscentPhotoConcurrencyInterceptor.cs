@@ -59,12 +59,12 @@ public sealed class AscentPhotoConcurrencyInterceptor : SaveChangesInterceptor
             return;
         }
 
-        foreach (EntityEntry<Ascent> owner in context.ChangeTracker.Entries<Ascent>())
+        IEnumerable<EntityEntry<Ascent>> owners = context.ChangeTracker.Entries<Ascent>()
+            .Where(owner => owner.State is not EntityState.Deleted && changedOwners.Contains(owner.Entity.Id));
+
+        foreach (EntityEntry<Ascent> owner in owners)
         {
-            if (owner.State is not EntityState.Deleted && changedOwners.Contains(owner.Entity.Id))
-            {
-                owner.Property(ascent => ascent.UpdatedAtUtc).IsModified = true;
-            }
+            owner.Property(ascent => ascent.UpdatedAtUtc).IsModified = true;
         }
     }
 
