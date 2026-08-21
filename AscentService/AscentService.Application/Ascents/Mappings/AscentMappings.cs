@@ -25,11 +25,6 @@ internal static class AscentMappings
         row.Visibility.ToString(),
         SignThumbnail(row, signer));
 
-    private static string? SignThumbnail(AscentSummaryRow row, IPhotoUrlSigner signer) =>
-        row.ThumbnailPublicId is null
-            ? null
-            : signer.Sign(row.ThumbnailPublicId, PhotoDeliveryLifetime.For(row.Visibility));
-
     public static AscentResponse ToResponse(this Ascent ascent, IPhotoUrlSigner signer) => new(
         ascent.Id,
         ascent.UserId,
@@ -58,4 +53,9 @@ internal static class AscentMappings
         conditions.Snow?.ToString(),
         conditions.Wind?.ToString(),
         conditions.Trail?.ToString());
+
+    private static string? SignThumbnail(AscentSummaryRow row, IPhotoUrlSigner signer) =>
+        row.ThumbnailPublicId is null
+            ? null
+            : signer.Sign(row.ThumbnailPublicId, PhotoDeliveryLifetime.For(row.Visibility));
 }

@@ -25,7 +25,7 @@ public sealed class AscentTests
         ascent.DomainEvents.OfType<AscentRegisteredDomainEvent>().Single()
             .Should().BeEquivalentTo(new
             {
-                PeakId = AscentMother.Aneto.PeakId,
+                AscentMother.Aneto.PeakId,
                 PeakName = AscentMother.Aneto.Name,
                 PeakAltitudeMeters = AscentMother.Aneto.AltitudeMeters
             });
