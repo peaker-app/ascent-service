@@ -10,15 +10,20 @@ internal sealed class CloudinaryPhotoUrlSigner(
 {
     public string Sign(string publicId, TimeSpan lifetime)
     {
-        AuthToken token = new AuthToken(cloudinaryFactory.Options.AuthTokenKey)
-            .StartTime(new DateTimeOffset(dateTimeProvider.UtcNow, TimeSpan.Zero).ToUnixTimeSeconds())
-            .Duration((long)lifetime.TotalSeconds);
-
-        return cloudinaryFactory.Client.Api.UrlImgUp
+        Url url = cloudinaryFactory.Client.Api.UrlImgUp
             .Secure(true)
             .Type(PhotoDelivery.AuthenticatedType)
-            .Signed(true)
-            .AuthToken(token)
-            .BuildUrl(publicId);
+            .Signed(true);
+
+        return HasTokenKey
+            ? url.AuthToken(ExpiringToken(lifetime)).BuildUrl(publicId)
+            : url.BuildUrl(publicId);
     }
+
+    private bool HasTokenKey => !string.IsNullOrWhiteSpace(cloudinaryFactory.Options.AuthTokenKey);
+
+    private AuthToken ExpiringToken(TimeSpan lifetime) =>
+        new AuthToken(cloudinaryFactory.Options.AuthTokenKey)
+            .StartTime(new DateTimeOffset(dateTimeProvider.UtcNow, TimeSpan.Zero).ToUnixTimeSeconds())
+            .Duration((long)lifetime.TotalSeconds);
 }

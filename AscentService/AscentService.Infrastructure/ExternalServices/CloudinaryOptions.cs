@@ -15,7 +15,6 @@ public sealed class CloudinaryOptions
     [Required]
     public string ApiSecret { get; init; } = string.Empty;
 
-    [Required]
     public string AuthTokenKey { get; init; } = string.Empty;
 
     [Required]
