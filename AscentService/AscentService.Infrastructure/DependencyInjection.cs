@@ -32,14 +32,14 @@ public static class DependencyInjection
         services.AddPersistence(configuration);
         services.AddPhotoStorage(configuration);
         services.AddExternalServices(configuration);
-        services.AddEventBus(configuration, bus =>
+        services.AddEventBus(configuration, new EventBusRegistration("ascent", bus =>
         {
             bus.AddConsumer<PeakRenamedConsumer>();
-            bus.AddConsumer<PeakUpdatedConsumer>().Endpoint(endpoint => endpoint.Temporary = true);
-            bus.AddConsumer<ProfileUpdatedConsumer>().Endpoint(endpoint => endpoint.Temporary = true);
+            bus.AddTemporaryConsumer<PeakUpdatedConsumer>();
+            bus.AddTemporaryConsumer<ProfileUpdatedConsumer>();
             bus.AddConsumer<UserDeletedConsumer>();
             bus.AddConsumer<UserEmailConfirmedConsumer>();
-        });
+        }));
         services.AddDomainEventHandlers();
 
         return services;
